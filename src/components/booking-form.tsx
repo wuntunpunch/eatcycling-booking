@@ -95,7 +95,7 @@ export default function BookingForm() {
 
       <div>
         <label htmlFor="service_type" className="block text-sm font-medium text-gray-700">
-          Service Type
+          Service Type <span className="text-red-500">*</span>
         </label>
         <select
           id="service_type"
@@ -103,7 +103,7 @@ export default function BookingForm() {
           value={formData.service_type}
           onChange={handleChange}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
         >
           {SERVICES.map((service) => (
             <option key={service} value={service}>
@@ -115,7 +115,7 @@ export default function BookingForm() {
 
       <div>
         <label htmlFor="date" className="block text-sm font-medium text-gray-700">
-          Preferred Date
+          Preferred Date <span className="text-red-500">*</span>
         </label>
         <input
           type="date"
@@ -125,13 +125,13 @@ export default function BookingForm() {
           onChange={handleChange}
           min={today}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
         />
       </div>
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-          Your Name
+          Your Name <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
@@ -140,7 +140,7 @@ export default function BookingForm() {
           value={formData.name}
           onChange={handleChange}
           required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
         />
       </div>
 
@@ -156,7 +156,7 @@ export default function BookingForm() {
           onChange={handleChange}
           required
           placeholder="07xxx xxxxxx"
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
         />
         <p className="mt-1 text-sm text-gray-500">We&apos;ll contact you via WhatsApp</p>
       </div>
@@ -171,13 +171,13 @@ export default function BookingForm() {
           name="email"
           value={formData.email}
           onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
         />
       </div>
 
       <div>
         <label htmlFor="bike_details" className="block text-sm font-medium text-gray-700">
-          Bike Details
+          Bike Details <span className="text-red-500">*</span>
         </label>
         <textarea
           id="bike_details"
@@ -187,14 +187,14 @@ export default function BookingForm() {
           required
           rows={3}
           placeholder="Make, model, any issues you've noticed..."
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
         />
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting}
-        className="w-full rounded-md bg-blue-600 px-4 py-3 text-white font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full rounded-md bg-medium-blue px-4 py-3 text-white font-medium hover:bg-dark-blue focus:outline-none focus:ring-2 focus:ring-medium-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? 'Booking...' : 'Book Service'}
       </button>
