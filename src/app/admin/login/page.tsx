@@ -78,10 +78,69 @@ export default function LoginPage() {
         body: JSON.stringify({ email: email.trim() }),
       });
 
-      const data = await response.json();
+      let data: any = {};
+      const contentType = response.headers.get('content-type');
+      
+      // Read response body once
+      let responseText = '';
+      try {
+        responseText = await response.text();
+      } catch (readError) {
+        console.error('Failed to read response body:', readError);
+        showToast('Server error: Could not read response', 'error');
+        return;
+      }
+      
+      // Parse JSON if content-type indicates JSON
+      if (contentType && contentType.includes('application/json')) {
+        if (responseText) {
+          try {
+            data = JSON.parse(responseText);
+          } catch (jsonError) {
+            console.error('Failed to parse JSON response:', jsonError, 'Response text:', responseText);
+            showToast('Server error: Invalid JSON response', 'error');
+            return;
+          }
+        } else {
+          console.warn('Empty JSON response body');
+          data = {};
+        }
+      } else {
+        // Not JSON, show text response
+        console.error('Non-JSON response:', responseText);
+        showToast(`Server error: ${responseText || 'Invalid response format'}`, 'error');
+        return;
+      }
 
       if (!response.ok) {
-        showToast(data.message || 'Failed to send magic link', 'error');
+        // Extract error message with proper fallback chain
+        let errorMessage = data?.message;
+        
+        if (!errorMessage && data?.error) {
+          if (typeof data.error === 'string') {
+            errorMessage = data.error;
+          } else if (typeof data.error === 'object' && data.error?.message) {
+            errorMessage = data.error.message;
+          }
+        }
+        
+        // Final fallback
+        if (!errorMessage) {
+          errorMessage = `Failed to send magic link (${response.status} ${response.statusText})`;
+        }
+        
+        // Log comprehensive error details (only in development)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('=== LOGIN ERROR DETAILS ===');
+          console.error('Status:', response.status);
+          console.error('Status Text:', response.statusText);
+          console.error('Content-Type:', contentType);
+          console.error('Response Text:', responseText);
+          console.error('Parsed Data:', data);
+          console.error('==========================');
+        }
+        
+        showToast(errorMessage, 'error');
         return;
       }
 
@@ -90,7 +149,8 @@ export default function LoginPage() {
       setResendCooldown(60); // 60 second cooldown
     } catch (error) {
       console.error('Login error:', error);
-      showToast('An error occurred. Please try again.', 'error');
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
+      showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }

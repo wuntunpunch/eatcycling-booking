@@ -2,50 +2,127 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`[${requestId}] Login request received`);
+  
   try {
-    const { email } = await request.json();
+    // Validate environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      console.error(`[${requestId}] Missing NEXT_PUBLIC_SUPABASE_URL environment variable`);
+      return NextResponse.json(
+        { message: 'Server configuration error: Missing Supabase URL' },
+        { status: 500 }
+      );
+    }
+
+    if (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+      console.error(`[${requestId}] Missing NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY environment variable`);
+      return NextResponse.json(
+        { message: 'Server configuration error: Missing Supabase key' },
+        { status: 500 }
+      );
+    }
+
+    // Parse request body
+    let email: string;
+    try {
+      const body = await request.json();
+      email = body.email;
+      console.log(`[${requestId}] Parsed email:`, email ? 'present' : 'missing');
+    } catch (parseError) {
+      console.error(`[${requestId}] Failed to parse request body:`, parseError);
+      return NextResponse.json(
+        { message: 'Invalid request: Could not parse email' },
+        { status: 400 }
+      );
+    }
 
     if (!email || typeof email !== 'string') {
+      console.error(`[${requestId}] Email validation failed`);
       return NextResponse.json(
         { message: 'Email is required' },
         { status: 400 }
       );
     }
 
-    const supabase = await createServerSupabaseClient();
+    // Create Supabase client
+    let supabase;
+    try {
+      supabase = await createServerSupabaseClient();
+      console.log(`[${requestId}] Supabase client created successfully`);
+    } catch (clientError) {
+      console.error(`[${requestId}] Failed to create Supabase client:`, clientError);
+      return NextResponse.json(
+        { message: 'Server error: Failed to initialize authentication service' },
+        { status: 500 }
+      );
+    }
 
-    // Determine the base URL
+    // Determine the base URL - use the request origin to ensure correct URL
+    const requestUrl = new URL(request.url);
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-      (process.env.NODE_ENV === 'production' 
-        ? 'https://book.eatcycling.co.uk'
-        : 'http://localhost:3000');
+      `${requestUrl.protocol}//${requestUrl.host}`;
+
+    const redirectTo = `${baseUrl}/api/auth/callback`;
+    console.log(`[${requestId}] Sending magic link to:`, email.trim().toLowerCase(), 'redirectTo:', redirectTo);
 
     // Send magic link
-    const { error } = await supabase.auth.signInWithOtp({
+    const { data, error } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
-        emailRedirectTo: `${baseUrl}/api/auth/callback`,
+        emailRedirectTo: redirectTo,
       },
     });
 
     if (error) {
-      console.error('Login error:', error);
-      // Don't reveal if user exists or not for security
-      return NextResponse.json(
-        { message: 'Failed to send magic link. Please check your email or contact support.' },
+      console.error(`[${requestId}] Supabase login error:`, {
+        message: error.message,
+        status: error.status,
+        name: error.name,
+        fullError: error
+      });
+      
+      // Return detailed error message
+      const errorMessage = error.message || 'Failed to send magic link. Please check your email or contact support.';
+      const response = NextResponse.json(
+        { 
+          message: errorMessage,
+          error: process.env.NODE_ENV === 'development' ? {
+            message: error.message,
+            status: error.status,
+            name: error.name
+          } : undefined
+        },
         { status: 400 }
       );
+      console.log(`[${requestId}] Returning error response:`, errorMessage);
+      return response;
     }
 
-    return NextResponse.json({
+    console.log(`[${requestId}] Magic link sent successfully to:`, email.trim().toLowerCase());
+
+    const successResponse = NextResponse.json({
       message: 'Magic link sent! Check your email.',
       success: true,
     });
+    console.log(`[${requestId}] Returning success response`);
+    return successResponse;
   } catch (error) {
-    console.error('Login API error:', error);
-    return NextResponse.json(
-      { message: 'Internal server error' },
+    console.error(`[${requestId}] Login API error:`, error);
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    const response = NextResponse.json(
+      { 
+        message: errorMessage,
+        error: process.env.NODE_ENV === 'development' ? {
+          message: errorMessage,
+          stack: errorStack
+        } : undefined
+      },
       { status: 500 }
     );
+    console.log(`[${requestId}] Returning catch error response:`, errorMessage);
+    return response;
   }
 }

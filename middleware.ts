@@ -3,6 +3,17 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
+  
+  // Check if this is a root-level auth callback (Supabase might redirect here)
+  const code = request.nextUrl.searchParams.get('code');
+  const error = request.nextUrl.searchParams.get('error');
+  if ((code || error) && request.nextUrl.pathname === '/') {
+    // Redirect to the proper callback handler
+    const callbackUrl = new URL('/api/auth/callback', request.url);
+    callbackUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(callbackUrl);
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -83,6 +94,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/admin/:path*',
     '/api/admin/:path*',
   ],
