@@ -1,14 +1,85 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { AdminHeader } from '@/components/admin-header';
+import { CacheSync } from '@/components/cache-sync';
+import { FallbackBanner } from '@/components/fallback-banner';
+import { createClient } from '@/lib/supabase';
+import { isAuthCacheValid, getCachedEmail } from '@/lib/auth-cache';
 
 export default function AdminDashboard() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (user && !error) {
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Check fallback cache
+        if (isAuthCacheValid() && getCachedEmail()) {
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+
+        // Not authenticated
+        router.push('/admin/login');
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // Check fallback cache
+        if (isAuthCacheValid() && getCachedEmail()) {
+          setIsAuthenticated(true);
+          setIsLoading(false);
+          return;
+        }
+        router.push('/admin/login');
+      }
+    }
+
+    checkAuth();
+  }, [router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <CacheSync />
+        <FallbackBanner />
+        <AdminHeader title="EAT Cycling Admin" />
+        <main className="mx-auto max-w-7xl px-4 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="h-32 bg-gray-200 rounded-lg"></div>
+              <div className="h-32 bg-gray-200 rounded-lg"></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect
+  }
+
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">EAT Cycling Admin</h1>
-        </div>
-      </header>
-
+      <CacheSync />
+      <FallbackBanner />
+      <AdminHeader title="EAT Cycling Admin" />
       <main className="mx-auto max-w-7xl px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2">
           <Link

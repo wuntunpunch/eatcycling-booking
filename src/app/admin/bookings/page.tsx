@@ -1,10 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { SERVICE_LABELS, BookingWithCustomer } from '@/lib/types';
-import Link from 'next/link';
+import { AdminHeader } from '@/components/admin-header';
+import { CacheSync } from '@/components/cache-sync';
+import { FallbackBanner } from '@/components/fallback-banner';
+import { fetchWithRetry } from '@/lib/api-client';
 
 export default function BookingsPage() {
+  const router = useRouter();
   const [bookings, setBookings] = useState<BookingWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingReady, setMarkingReady] = useState<string | null>(null);
@@ -15,12 +20,21 @@ export default function BookingsPage() {
 
   async function fetchBookings() {
     try {
-      const response = await fetch('/api/admin/bookings');
+      const response = await fetchWithRetry('/api/admin/bookings', {}, 1);
+      
+      if (response.status === 401) {
+        // Show error message before redirect
+        alert('Session expired, please log in again');
+        router.push('/admin/login');
+        return;
+      }
+
       if (!response.ok) {
         const error = await response.json();
         console.error('Error fetching bookings:', error);
         return;
       }
+
       const { bookings } = await response.json();
       setBookings((bookings || []) as unknown as BookingWithCustomer[]);
     } catch (error) {
@@ -62,22 +76,25 @@ export default function BookingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <p className="text-gray-500">Loading bookings...</p>
+      <div className="min-h-screen bg-gray-100">
+        <CacheSync />
+        <FallbackBanner />
+        <AdminHeader title="Bookings" backLink="/admin" backLabel="Back to Dashboard" />
+        <main className="mx-auto max-w-7xl px-4 py-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-12 bg-gray-200 rounded"></div>
+            <div className="h-64 bg-gray-200 rounded"></div>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-          <Link href="/admin" className="text-blue-600 hover:text-blue-800">
-            Back to Dashboard
-          </Link>
-        </div>
-      </header>
+      <CacheSync />
+      <FallbackBanner />
+      <AdminHeader title="Bookings" backLink="/admin" backLabel="Back to Dashboard" />
 
       <main className="mx-auto max-w-7xl px-4 py-8">
         {bookings.length === 0 ? (

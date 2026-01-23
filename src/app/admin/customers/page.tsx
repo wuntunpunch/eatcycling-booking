@@ -1,10 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Customer } from '@/lib/types';
+import { AdminHeader } from '@/components/admin-header';
+import { CacheSync } from '@/components/cache-sync';
+import { FallbackBanner } from '@/components/fallback-banner';
+import { fetchWithRetry } from '@/lib/api-client';
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -15,12 +20,24 @@ export default function CustomersPage() {
 
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/admin/customers?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetchWithRetry(
+        `/api/admin/customers?q=${encodeURIComponent(searchQuery)}`,
+        {},
+        1
+      );
+
+      if (response.status === 401) {
+        alert('Session expired, please log in again');
+        router.push('/admin/login');
+        return;
+      }
+
       if (!response.ok) {
         const error = await response.json();
         console.error('Search error:', error);
         return;
       }
+
       const { customers } = await response.json();
       setCustomers(customers || []);
     } catch (error) {
@@ -32,14 +49,9 @@ export default function CustomersPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="mx-auto max-w-7xl px-4 py-6 flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-          <Link href="/admin" className="text-blue-600 hover:text-blue-800">
-            Back to Dashboard
-          </Link>
-        </div>
-      </header>
+      <CacheSync />
+      <FallbackBanner />
+      <AdminHeader title="Customers" backLink="/admin" backLabel="Back to Dashboard" />
 
       <main className="mx-auto max-w-7xl px-4 py-8">
         <form onSubmit={handleSearch} className="mb-6">
