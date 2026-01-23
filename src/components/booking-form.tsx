@@ -70,14 +70,14 @@ export default function BookingForm() {
 
   if (submitStatus === 'success') {
     return (
-      <div className="rounded-lg bg-green-50 p-6 text-center">
-        <h2 className="text-xl font-semibold text-green-800">Booking Confirmed!</h2>
-        <p className="mt-2 text-green-700">
+      <div className="rounded-lg bg-[rgba(254,19,254,0.1)] p-6 text-center border border-[rgba(254,19,254,0.2)]">
+        <h2 className="text-xl font-semibold text-[#FE13FE]">Booking Confirmed!</h2>
+        <p className="mt-2 text-gray-700">
           Thanks {formData.name || 'for your booking'}! We&apos;ll be in touch via WhatsApp to confirm your appointment.
         </p>
         <button
           onClick={() => setSubmitStatus('idle')}
-          className="mt-4 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+          className="mt-4 rounded-md bg-[#FE13FE] px-4 py-2 text-white hover:bg-[rgba(254,19,254,0.8)]"
         >
           Book Another Service
         </button>
