@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Customer } from '@/lib/types';
-import { createClient } from '@/lib/supabase';
 
 export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -15,20 +14,20 @@ export default function CustomersPage() {
     if (!searchQuery.trim()) return;
 
     setIsSearching(true);
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from('customers')
-      .select('*')
-      .or(`phone.ilike.%${searchQuery}%,name.ilike.%${searchQuery}%`)
-      .limit(20);
-
-    if (error) {
+    try {
+      const response = await fetch(`/api/admin/customers?q=${encodeURIComponent(searchQuery)}`);
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Search error:', error);
+        return;
+      }
+      const { customers } = await response.json();
+      setCustomers(customers || []);
+    } catch (error) {
       console.error('Search error:', error);
-    } else {
-      setCustomers(data || []);
+    } finally {
+      setIsSearching(false);
     }
-    setIsSearching(false);
   };
 
   return (
@@ -50,7 +49,7 @@ export default function CustomersPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by name or phone..."
-              className="flex-1 rounded-md border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="flex-1 rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <button
               type="submit"

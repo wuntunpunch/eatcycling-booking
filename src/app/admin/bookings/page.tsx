@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { SERVICE_LABELS, BookingWithCustomer } from '@/lib/types';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase';
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<BookingWithCustomer[]>([]);
@@ -15,21 +14,20 @@ export default function BookingsPage() {
   }, []);
 
   async function fetchBookings() {
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('bookings')
-      .select(`
-        *,
-        customer:customers(*)
-      `)
-      .order('date', { ascending: true });
-
-    if (error) {
+    try {
+      const response = await fetch('/api/admin/bookings');
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('Error fetching bookings:', error);
+        return;
+      }
+      const { bookings } = await response.json();
+      setBookings((bookings || []) as unknown as BookingWithCustomer[]);
+    } catch (error) {
       console.error('Error fetching bookings:', error);
-    } else {
-      setBookings((data || []) as unknown as BookingWithCustomer[]);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleMarkReady(bookingId: string) {
