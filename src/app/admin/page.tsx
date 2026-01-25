@@ -55,7 +55,7 @@ export default function AdminDashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen">
         <CacheSync />
         <FallbackBanner />
         <AdminHeader title="EAT Cycling Admin" />
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       <CacheSync />
       <FallbackBanner />
       <AdminHeader title="EAT Cycling Admin" />

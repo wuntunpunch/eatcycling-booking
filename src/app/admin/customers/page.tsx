@@ -48,7 +48,7 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       <CacheSync />
       <FallbackBanner />
       <AdminHeader title="Customers" backLink="/admin" backLabel="Back to Dashboard" />

@@ -30,7 +30,7 @@ export default function FallbackPage() {
 
   if (isValid === null) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <p className="text-gray-500">Checking authentication...</p>
       </div>
     );
@@ -41,7 +41,7 @@ export default function FallbackPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       <CacheSync />
       {/* Warning Banner */}
       <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-3">

@@ -76,7 +76,7 @@ export default function BookingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen">
         <CacheSync />
         <FallbackBanner />
         <AdminHeader title="Bookings" backLink="/admin" backLabel="Back to Dashboard" />
@@ -91,7 +91,7 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen">
       <CacheSync />
       <FallbackBanner />
       <AdminHeader title="Bookings" backLink="/admin" backLabel="Back to Dashboard" />

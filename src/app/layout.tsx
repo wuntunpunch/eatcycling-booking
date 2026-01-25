@@ -19,8 +19,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
-        {children}
+      <body className={`${inter.variable} antialiased min-h-screen bg-gray-50 relative`}>
+        {/* Pink gradient overlay matching the main site */}
+        <div
+          className="fixed inset-0 z-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,235,255,0.1) 40%, rgba(254,150,254,0.2) 80%, rgba(254,19,254,0.4) 100%)",
+          }}
+        ></div>
+        <div className="relative z-10">
+          {children}
+        </div>
       </body>
     </html>
   );
