@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import { checkAuth } from '@/lib/auth-helpers';
 
 function getSupabaseClient() {
   return createClient(
@@ -9,6 +10,16 @@ function getSupabaseClient() {
 }
 
 export async function GET(request: NextRequest) {
+  // Check authentication
+  const auth = await checkAuth(request);
+  
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { message: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
   const supabase = getSupabaseClient();
   const searchParams = request.nextUrl.searchParams;
   const query = searchParams.get('q');
