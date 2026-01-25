@@ -32,10 +32,11 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Check if this is an admin route (excluding login and fallback)
+  // Check if this is an admin route (excluding login, fallback, and reset-password)
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') && 
     !request.nextUrl.pathname.startsWith('/admin/login') &&
-    !request.nextUrl.pathname.startsWith('/admin/fallback');
+    !request.nextUrl.pathname.startsWith('/admin/fallback') &&
+    !request.nextUrl.pathname.startsWith('/admin/reset-password');
   const isAdminApiRoute = request.nextUrl.pathname.startsWith('/api/admin');
 
   if (!isAdminRoute && !isAdminApiRoute) {

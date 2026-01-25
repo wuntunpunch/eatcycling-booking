@@ -14,6 +14,9 @@ export default function LoginPage() {
   const [emailSent, setEmailSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const [hasValidCache, setHasValidCache] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [rateLimitHit, setRateLimitHit] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast, ToastComponent } = useToast();
@@ -163,6 +166,7 @@ export default function LoginPage() {
       } catch (readError) {
         console.error('Failed to read response body:', readError);
         showToast('Server error: Could not read response', 'error');
+        setIsSubmitting(false);
         return;
       }
       
@@ -174,6 +178,7 @@ export default function LoginPage() {
           } catch (jsonError) {
             console.error('Failed to parse JSON response:', jsonError, 'Response text:', responseText);
             showToast('Server error: Invalid JSON response', 'error');
+            setIsSubmitting(false);
             return;
           }
         } else {
@@ -184,6 +189,7 @@ export default function LoginPage() {
         // Not JSON, show text response
         console.error('Non-JSON response:', responseText);
         showToast(`Server error: ${responseText || 'Invalid response format'}`, 'error');
+        setIsSubmitting(false);
         return;
       }
 
@@ -215,7 +221,19 @@ export default function LoginPage() {
           console.error('==========================');
         }
         
-        showToast(errorMessage, 'error');
+        // If rate limit, show error with suggestion to use password login
+        if (data?.isRateLimit || response.status === 429) {
+          setRateLimitHit(true);
+          showToast(errorMessage, 'error');
+          // Show suggestion after a brief delay
+          setTimeout(() => {
+            showToast('Tip: Switch to password login to avoid rate limits', 'info');
+          }, 2000);
+        } else {
+          showToast(errorMessage, 'error');
+        }
+        
+        setIsSubmitting(false);
         return;
       }
 
@@ -234,6 +252,43 @@ export default function LoginPage() {
   const handleResend = () => {
     if (resendCooldown > 0) return;
     handleSubmit(new Event('submit') as any);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+
+      // Check for rate limit errors - these should be shown to the user
+      if (data.isRateLimit || response.status === 429) {
+        showToast(data.message || 'Email rate limit exceeded. Please wait a few minutes.', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // For other cases, always show success message (for security - prevents email enumeration)
+      setResetEmailSent(true);
+      showToast(data.message || 'If an account exists with this email, a password reset link has been sent.', 'success');
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      // Still show success message for security (unless it's a network error)
+      setResetEmailSent(true);
+      showToast('If an account exists with this email, a password reset link has been sent.', 'success');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -261,8 +316,8 @@ export default function LoginPage() {
               : 'Enter your admin credentials'}
           </p>
 
-          {/* Login method toggle - only show if password method is active or fallback param is present */}
-          {(loginMethod === 'password' || searchParams.get('fallback') === 'true') && (
+          {/* Login method toggle - show if password method is active, fallback param is present, or rate limit was hit */}
+          {(loginMethod === 'password' || searchParams.get('fallback') === 'true' || rateLimitHit) && (
             <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-lg">
               <button
                 type="button"
@@ -270,6 +325,7 @@ export default function LoginPage() {
                   setLoginMethod('magic');
                   setPassword('');
                   setEmailSent(false);
+                  setRateLimitHit(false);
                 }}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                   loginMethod === 'magic'
@@ -284,6 +340,7 @@ export default function LoginPage() {
                 onClick={() => {
                   setLoginMethod('password');
                   setEmailSent(false);
+                  setRateLimitHit(false);
                 }}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                   loginMethod === 'password'
@@ -329,73 +386,171 @@ export default function LoginPage() {
               </div>
             </div>
           ) : loginMethod === 'password' ? (
-            <form onSubmit={handlePasswordLogin} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email address
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@example.com"
-                  required
-                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  disabled={isSubmitting}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting || !email.trim() || !password.trim()}
-                className="w-full rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg
-                      className="animate-spin h-5 w-5 text-white"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
+            <>
+              {resetEmailSent ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                    <p className="text-blue-800 text-sm">
+                      If an account exists with this email, a password reset link has been sent. Check your email.
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <button
+                      onClick={() => {
+                        setResetEmailSent(false);
+                        setShowForgotPassword(false);
+                        setEmail('');
+                      }}
+                      className="text-blue-600 hover:text-blue-800 text-sm"
                     >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                      />
-                    </svg>
-                    Logging in...
-                  </>
-                ) : (
-                  'Log in'
-                )}
-              </button>
-            </form>
+                      Back to login
+                    </button>
+                  </div>
+                </div>
+              ) : showForgotPassword ? (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <label htmlFor="reset-email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email address
+                    </label>
+                    <input
+                      id="reset-email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      required
+                      className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !email.trim()}
+                    className="w-full rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Sending...
+                      </>
+                    ) : (
+                      'Send reset link'
+                    )}
+                  </button>
+
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setEmail('');
+                      }}
+                      className="text-gray-600 hover:text-gray-800 text-sm"
+                    >
+                      Back to login
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handlePasswordLogin} className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email address
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="admin@example.com"
+                      required
+                      className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotPassword(true)}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !email.trim() || !password.trim()}
+                    className="w-full rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg
+                          className="animate-spin h-5 w-5 text-white"
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                        Logging in...
+                      </>
+                    ) : (
+                      'Log in'
+                    )}
+                  </button>
+                </form>
+              )}
+            </>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>

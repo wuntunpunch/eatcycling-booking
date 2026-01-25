@@ -6,11 +6,13 @@ export async function GET(request: NextRequest) {
   const code = requestUrl.searchParams.get('code');
   const error = requestUrl.searchParams.get('error');
   const errorDescription = requestUrl.searchParams.get('error_description');
+  const type = requestUrl.searchParams.get('type'); // 'recovery' for password reset
 
   console.log('Auth callback received:', { 
     code: code ? 'present' : 'missing', 
     error, 
     errorDescription,
+    type,
     url: requestUrl.toString() 
   });
 
@@ -20,6 +22,14 @@ export async function GET(request: NextRequest) {
     console.error('Auth callback error:', { error, errorDescription });
     return NextResponse.redirect(
       new URL(`/admin/login?error=${encodeURIComponent(errorMessage)}`, request.url)
+    );
+  }
+
+  // Handle password reset flow
+  if (type === 'recovery') {
+    // Redirect to password reset page with the code
+    return NextResponse.redirect(
+      new URL(`/admin/reset-password?code=${encodeURIComponent(code)}`, request.url)
     );
   }
 

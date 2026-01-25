@@ -107,6 +107,37 @@ INSERT INTO auth.users (
 
 This uses Supabase's industry-standard authentication with secure password hashing (bcrypt), session management, and built-in security features.
 
+### Password Reset & Rate Limits
+
+**Email Rate Limits:**
+- Supabase limits email sending to **2 emails per hour** per email address
+- This affects magic link login and password reset emails
+- Rate limit errors show: "email rate limit exceeded" (429 status)
+
+**If Rate Limited - Reset Password via SQL:**
+
+When email rate limits prevent password reset, you can reset the password directly in Supabase:
+
+1. Go to Supabase Dashboard → SQL Editor
+2. Find your user ID:
+```sql
+SELECT id, email FROM auth.users WHERE email = 'your-email@example.com';
+```
+
+3. Reset the password (replace `USER_ID` and `NEW_PASSWORD`):
+```sql
+UPDATE auth.users 
+SET encrypted_password = crypt('NEW_PASSWORD', gen_salt('bf'))
+WHERE id = 'USER_ID_FROM_ABOVE';
+```
+
+4. After resetting, use password login at `/admin/login?fallback=true`
+
+**Alternative Solutions:**
+- Wait up to 1 hour for rate limit to expire
+- Use a different email address for admin account
+- Increase rate limits in Supabase Dashboard (paid plans only)
+
 ## Project Structure
 
 ```

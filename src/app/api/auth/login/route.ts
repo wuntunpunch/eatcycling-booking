@@ -82,18 +82,32 @@ export async function POST(request: NextRequest) {
         fullError: error
       });
       
-      // Return detailed error message
-      const errorMessage = error.message || 'Failed to send magic link. Please check your email or contact support.';
+      // Check for rate limit errors
+      const isRateLimit = error.message?.toLowerCase().includes('rate limit') || 
+                         error.message?.toLowerCase().includes('too many') ||
+                         error.status === 429;
+      
+      let errorMessage: string;
+      let statusCode = 400;
+      
+      if (isRateLimit) {
+        errorMessage = 'Email rate limit exceeded (2 emails per hour). Please wait up to 1 hour before requesting another magic link, or use password login instead for immediate access.';
+        statusCode = 429;
+      } else {
+        errorMessage = error.message || 'Failed to send magic link. Please check your email or contact support.';
+      }
+      
       const response = NextResponse.json(
         { 
           message: errorMessage,
+          isRateLimit,
           error: process.env.NODE_ENV === 'development' ? {
             message: error.message,
             status: error.status,
             name: error.name
           } : undefined
         },
-        { status: 400 }
+        { status: statusCode }
       );
       console.log(`[${requestId}] Returning error response:`, errorMessage);
       return response;
