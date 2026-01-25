@@ -11,7 +11,7 @@ export const SERVICE_LABELS: Record<ServiceType, string> = {
   bosch_diagnostics: 'Bosch Diagnostics',
 };
 
-export type BookingStatus = 'pending' | 'confirmed' | 'in_progress' | 'ready' | 'collected';
+export type BookingStatus = 'pending' | 'ready' | 'complete';
 
 export interface Customer {
   id: string;

@@ -1,7 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
-import { sendBikeReadyNotification } from '@/lib/whatsapp';
-import { ServiceType } from '@/lib/types';
 
 function getSupabaseClient() {
   return createClient(
@@ -18,17 +16,14 @@ export async function POST(
   const supabase = getSupabaseClient();
 
   try {
-    // Parse request body for skipWhatsApp option
+    // Parse request body for skipStage option (allows pending → complete)
     const body = await request.json().catch(() => ({}));
-    const skipWhatsApp = body.skipWhatsApp === true;
+    const skipStage = body.skipStage === true;
 
-    // Get booking with customer details
+    // Get booking to verify it exists and check current status
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        customer:customers(*)
-      `)
+      .select('id, status')
       .eq('id', id)
       .single();
 
@@ -39,10 +34,19 @@ export async function POST(
       );
     }
 
-    // Update booking status to ready
+    // If skipStage is true and status is pending, allow direct transition to complete
+    // Otherwise, only allow ready → complete
+    if (!skipStage && booking.status !== 'ready') {
+      return NextResponse.json(
+        { message: 'Booking must be ready before marking as complete' },
+        { status: 400 }
+      );
+    }
+
+    // Update booking status to complete
     const { error: updateError } = await supabase
       .from('bookings')
-      .update({ status: 'ready' })
+      .update({ status: 'complete' })
       .eq('id', id);
 
     if (updateError) {
@@ -53,23 +57,9 @@ export async function POST(
       );
     }
 
-    // Send WhatsApp notification unless skipped
-    if (!skipWhatsApp) {
-      try {
-        await sendBikeReadyNotification({
-          customerName: booking.customer.name,
-          customerPhone: booking.customer.phone,
-          serviceType: booking.service_type as ServiceType,
-        });
-      } catch (whatsappError) {
-        console.error('Error sending WhatsApp notification:', whatsappError);
-        // Still return success - booking was updated
-      }
-    }
-
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Mark ready error:', error);
+    console.error('Mark complete error:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }

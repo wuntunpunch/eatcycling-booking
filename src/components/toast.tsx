@@ -25,7 +25,7 @@ export function Toast({ message, type = 'info', duration = 5000, onClose }: Toas
   }[type];
 
   return (
-    <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-5">
+    <div className="fixed top-4 right-4 z-50 transform transition-all duration-300 ease-out translate-y-0 opacity-100">
       <div className={`${bgColor} text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]`}>
         <span>{message}</span>
         <button
