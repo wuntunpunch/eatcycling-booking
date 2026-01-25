@@ -65,6 +65,48 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SECRET_KEY=
 ```
 
+### Password-Based Fallback Authentication
+
+For emergency access when Supabase magic links are unavailable, password-based authentication is available via `/admin/login?fallback=true`.
+
+**To create an admin account:**
+1. Go to Supabase Dashboard > Authentication > Users
+2. Click "Add user" > "Create new user"
+3. Enter your email and password
+4. The account will be created and can be used for password login
+
+**Or create via SQL:**
+```sql
+-- In Supabase SQL Editor
+INSERT INTO auth.users (
+  instance_id,
+  id,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  created_at,
+  updated_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  is_super_admin,
+  role
+) VALUES (
+  '00000000-0000-0000-0000-000000000000',
+  gen_random_uuid(),
+  'your-admin@email.com',
+  crypt('your-password', gen_salt('bf')),
+  NOW(),
+  NOW(),
+  NOW(),
+  '{"provider":"email","providers":["email"]}',
+  '{}',
+  false,
+  'authenticated'
+);
+```
+
+This uses Supabase's industry-standard authentication with secure password hashing (bcrypt), session management, and built-in security features.
+
 ## Project Structure
 
 ```

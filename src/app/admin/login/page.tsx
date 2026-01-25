@@ -4,13 +4,16 @@ import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useToast } from '@/components/toast';
-import { setAuthCache } from '@/lib/auth-cache';
+import { setAuthCache, isAuthCacheValid } from '@/lib/auth-cache';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginMethod, setLoginMethod] = useState<'magic' | 'password'>('magic');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [hasValidCache, setHasValidCache] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast, ToastComponent } = useToast();
@@ -20,6 +23,12 @@ export default function LoginPage() {
     const error = searchParams.get('error');
     if (error) {
       showToast(error, 'error');
+    }
+
+    // Check if password fallback is enabled via URL parameter
+    const fallback = searchParams.get('fallback');
+    if (fallback === 'true') {
+      setLoginMethod('password');
     }
   }, [searchParams, showToast]);
 
@@ -53,6 +62,11 @@ export default function LoginPage() {
     }
   }, []);
 
+  // Check for valid cache on mount
+  useEffect(() => {
+    setHasValidCache(isAuthCacheValid());
+  }, []);
+
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown > 0) {
@@ -62,6 +76,67 @@ export default function LoginPage() {
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/api/auth/password-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email: email.trim(),
+          password: password.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        showToast(data.message || 'Invalid email or password', 'error');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Sync cache from cookie
+      const authEmail = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('eatcycling_auth_email='))
+        ?.split('=')[1];
+
+      if (authEmail) {
+        setAuthCache(authEmail);
+        document.cookie = 'eatcycling_auth_email=; max-age=0; path=/';
+      }
+
+      const cookieCache = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('eatcycling_auth_cache='))
+        ?.split('=')[1];
+
+      if (cookieCache) {
+        try {
+          const cache = JSON.parse(decodeURIComponent(cookieCache));
+          setAuthCache(cache.email);
+        } catch (error) {
+          console.error('Failed to sync cache from cookie:', error);
+        }
+      }
+
+      showToast('Login successful!', 'success');
+      router.push('/admin');
+    } catch (error) {
+      console.error('Password login error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again.';
+      showToast(errorMessage, 'error');
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,9 +255,46 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
             Admin Login
           </h1>
-          <p className="text-gray-600 text-center mb-8">
-            Enter your email to receive a magic link
+          <p className="text-gray-600 text-center mb-6">
+            {loginMethod === 'magic' 
+              ? 'Enter your email to receive a magic link'
+              : 'Enter your admin credentials'}
           </p>
+
+          {/* Login method toggle - only show if password method is active or fallback param is present */}
+          {(loginMethod === 'password' || searchParams.get('fallback') === 'true') && (
+            <div className="flex gap-2 mb-6 p-1 bg-gray-100 rounded-lg">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('magic');
+                  setPassword('');
+                  setEmailSent(false);
+                }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  loginMethod === 'magic'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Magic Link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMethod('password');
+                  setEmailSent(false);
+                }}
+                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                  loginMethod === 'password'
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Password
+              </button>
+            </div>
+          )}
 
           {emailSent ? (
             <div className="space-y-4">
@@ -216,6 +328,74 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
+          ) : loginMethod === 'password' ? (
+            <form onSubmit={handlePasswordLogin} className="space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  Email address
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  required
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  className="w-full rounded-md border border-gray-300 px-4 py-2 text-black focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={isSubmitting}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting || !email.trim() || !password.trim()}
+                className="w-full rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    Logging in...
+                  </>
+                ) : (
+                  'Log in'
+                )}
+              </button>
+            </form>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
@@ -270,18 +450,20 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* Fallback link */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
-              Having trouble?{' '}
-              <a
-                href="/admin/fallback"
-                className="text-blue-600 hover:text-blue-800"
-              >
-                Try fallback access
-              </a>
-            </p>
-          </div>
+          {/* Fallback link - only show if valid cache exists */}
+          {hasValidCache && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-500 text-center">
+                Having trouble?{' '}
+                <a
+                  href="/admin/fallback"
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  Try fallback access
+                </a>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

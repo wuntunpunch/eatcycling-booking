@@ -11,6 +11,7 @@ export interface AuthResult {
 /**
  * Check authentication for API routes
  * Tries Supabase first, falls back to localStorage cache if Supabase fails
+ * Also supports password-based authentication (sets same cache format)
  */
 export async function checkAuth(request: NextRequest): Promise<AuthResult> {
   // Try Supabase authentication first
