@@ -43,10 +43,27 @@ export async function POST(
       );
     }
 
-    // Update booking status to complete
+    // Get customer_id for reset logic
+    const { data: bookingData, error: fetchBookingError } = await supabase
+      .from('bookings')
+      .select('customer_id')
+      .eq('id', id)
+      .single();
+
+    if (fetchBookingError || !bookingData) {
+      return NextResponse.json(
+        { message: 'Failed to fetch booking data' },
+        { status: 500 }
+      );
+    }
+
+    // Update booking status to complete and set completed_at
     const { error: updateError } = await supabase
       .from('bookings')
-      .update({ status: 'complete' })
+      .update({ 
+        status: 'complete',
+        completed_at: new Date().toISOString()
+      })
       .eq('id', id);
 
     if (updateError) {
@@ -55,6 +72,23 @@ export async function POST(
         { message: 'Failed to update booking' },
         { status: 500 }
       );
+    }
+
+    // Reset logic: If customer has older completed bookings with reminder_sent_at IS NULL,
+    // set reminder_sent_at = NULL on older bookings (they'll be skipped since newer booking exists)
+    // This ensures only the most recent completed booking triggers a reminder
+    const { error: resetError } = await supabase
+      .from('bookings')
+      .update({ reminder_sent_at: null })
+      .eq('customer_id', bookingData.customer_id)
+      .neq('id', id)
+      .eq('status', 'complete')
+      .is('reminder_sent_at', null)
+      .lt('completed_at', new Date().toISOString());
+
+    if (resetError) {
+      // Log but don't fail - this is a best-effort optimization
+      console.warn('Error resetting old reminders:', resetError);
     }
 
     return NextResponse.json({ success: true });

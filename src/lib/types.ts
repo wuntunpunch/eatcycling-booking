@@ -18,6 +18,7 @@ export interface Customer {
   phone: string;
   name: string;
   email: string | null;
+  opt_out_reminders?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +31,8 @@ export interface Booking {
   bike_details: string;
   status: BookingStatus;
   notes: string | null;
+  completed_at?: string;
+  reminder_sent_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -45,4 +48,19 @@ export interface BookingFormData {
   service_type: ServiceType;
   date: string;
   bike_details: string;
+}
+
+export interface MessageLog {
+  id: string;
+  booking_id?: string;
+  customer_id: string;
+  message_type: 'reminder' | 'confirmation' | 'ready';
+  recipient_phone: string;
+  template_name?: string;
+  success: boolean;
+  error_message?: string;
+  whatsapp_message_id?: string;
+  api_response?: any;
+  estimated_cost?: number;
+  created_at: string;
 }
