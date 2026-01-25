@@ -279,3 +279,69 @@ Pop by whenever suits you to pick it up.
     return sendWhatsAppMessage(customerPhone, message);
   }
 }
+
+export async function sendServiceReminder({
+  customerName,
+  customerPhone,
+  completedDate,
+  serviceTypes,
+  bookingLink,
+}: {
+  customerName: string;
+  customerPhone: string;
+  completedDate: string; // ISO date string
+  serviceTypes: ServiceType[];
+  bookingLink?: string;
+}) {
+  const formattedDate = new Date(completedDate).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  // Format service types - if multiple, join them
+  const serviceLabels = serviceTypes.map((st) => SERVICE_LABELS[st]);
+  const servicesText = serviceLabels.length > 1 
+    ? serviceLabels.join(', ')
+    : serviceLabels[0];
+
+  // Generate booking link if not provided
+  const bookingUrl = bookingLink || 
+    `${process.env.BOOKING_FORM_URL || 'https://book.eatcycling.co.uk'}?name=${encodeURIComponent(customerName)}&phone=${encodeURIComponent(customerPhone)}`;
+
+  // Generate opt-out link
+  const optOutUrl = `${process.env.BOOKING_FORM_URL || 'https://book.eatcycling.co.uk'}/opt-out?phone=${encodeURIComponent(customerPhone)}`;
+
+  // Check if template is configured
+  const templateName = process.env.WHATSAPP_REMINDER_TEMPLATE_NAME;
+  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_GB';
+
+  if (templateName) {
+    // Use template message (required for outbound messages)
+    // Template should have placeholders like: {{1}} for name, {{2}} for date, {{3}} for services, {{4}} for booking link, {{5}} for opt-out link
+    return sendWhatsAppTemplateMessage(
+      customerPhone,
+      templateName,
+      templateLanguage,
+      [customerName, formattedDate, servicesText, bookingUrl, optOutUrl]
+    );
+  } else {
+    // Fallback message (only works within 24-hour window)
+    const message = `Hi ${customerName}! 🚴
+
+It's been 6 months since your last service with EAT Cycling.
+
+Last service: ${formattedDate}
+Service: ${servicesText}
+
+Time for your next service? Book online:
+${bookingUrl}
+
+Don't want reminders? Opt out here:
+${optOutUrl}
+
+- Eddie, EAT Cycling`;
+
+    return sendWhatsAppMessage(customerPhone, message);
+  }
+}
