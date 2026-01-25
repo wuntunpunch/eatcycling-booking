@@ -6,6 +6,7 @@ import { Customer } from '@/lib/types';
 import { AdminHeader } from '@/components/admin-header';
 import { CacheSync } from '@/components/cache-sync';
 import { FallbackBanner } from '@/components/fallback-banner';
+import { CustomerHistoryModal } from '@/components/customer-history-modal';
 import { fetchWithRetry } from '@/lib/api-client';
 
 export default function CustomersPage() {
@@ -13,6 +14,7 @@ export default function CustomersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +92,9 @@ export default function CustomersPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Joined
                   </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -107,6 +112,14 @@ export default function CustomersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {new Date(customer.created_at).toLocaleDateString('en-GB')}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <button
+                        onClick={() => setSelectedCustomer(customer)}
+                        className="text-blue-600 hover:text-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                      >
+                        View History
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -118,6 +131,12 @@ export default function CustomersPage() {
           </div>
         )}
       </main>
+
+      <CustomerHistoryModal
+        customer={selectedCustomer}
+        isOpen={selectedCustomer !== null}
+        onClose={() => setSelectedCustomer(null)}
+      />
     </div>
   );
 }
