@@ -60,7 +60,35 @@ export interface MessageLog {
   success: boolean;
   error_message?: string;
   whatsapp_message_id?: string;
-  api_response?: any;
+  api_response?: Record<string, unknown>;
   estimated_cost?: number;
   created_at: string;
+}
+
+export interface AvailabilitySettings {
+  id: string;
+  exclude_weekends: boolean;
+  exclude_sundays: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExcludedDate {
+  id: string;
+  start_date: string; // ISO date string (YYYY-MM-DD)
+  end_date: string | null; // ISO date string or null for single dates
+  reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExcludedDateRange {
+  start_date: string;
+  end_date?: string; // Optional, if omitted = single date
+  reason?: string;
+}
+
+export interface AvailabilitySettingsResponse {
+  settings: AvailabilitySettings;
+  excludedDates: ExcludedDate[];
 }

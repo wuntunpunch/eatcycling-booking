@@ -8,25 +8,30 @@ import { getAuthCache, isAuthCacheValid, getCachedEmail } from '@/lib/auth-cache
 
 export default function FallbackPage() {
   const router = useRouter();
-  const [isValid, setIsValid] = useState<boolean | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
+  // Initialize state from cache to avoid setState in effect
+  const cache = getAuthCache();
+  const valid = isAuthCacheValid();
+  const cachedEmail = getCachedEmail();
+  const [isValid, setIsValid] = useState<boolean | null>(valid ? true : null);
+  const [email, setEmail] = useState<string | null>(cachedEmail);
 
   useEffect(() => {
-    const cache = getAuthCache();
-    const valid = isAuthCacheValid();
-    const cachedEmail = getCachedEmail();
-
     if (!valid || !cachedEmail) {
       router.push('/admin/login');
       return;
     }
 
-    setIsValid(true);
-    setEmail(cachedEmail);
+    // Defer state updates to avoid synchronous setState in effect
+    const timeoutId = setTimeout(() => {
+      setIsValid(true);
+      setEmail(cachedEmail);
+    }, 0);
 
     // Set cookie for middleware to read
     document.cookie = `eatcycling_auth_cache=${JSON.stringify(cache)}; path=/; max-age=${24 * 60 * 60}`;
-  }, [router]);
+
+    return () => clearTimeout(timeoutId);
+  }, [router, valid, cachedEmail, cache]);
 
   if (isValid === null) {
     return (

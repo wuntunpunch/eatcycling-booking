@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendServiceReminder } from '@/lib/whatsapp';
 import { sendReminderFailureAlert, sendCronFailureAlert } from '@/lib/email';
-import { ServiceType } from '@/lib/types';
+import { ServiceType, Customer, BookingWithCustomer } from '@/lib/types';
 
 function getSupabaseClient() {
   return createClient(
@@ -22,7 +22,7 @@ function logMessage(
     success: boolean;
     error_message?: string;
     whatsapp_message_id?: string;
-    api_response?: any;
+    api_response?: Record<string, unknown>;
     estimated_cost?: number;
   }
 ) {
@@ -106,9 +106,9 @@ export async function GET(request: NextRequest) {
 
     // Filter to get only most recent completed booking per customer
     // Also filter out customers who have opted out
-    const customerMap = new Map<string, typeof bookings[0]>();
+    const customerMap = new Map<string, BookingWithCustomer>();
     for (const booking of bookings) {
-      const customer = booking.customer as any;
+      const customer = booking.customer as Customer;
       // Skip if customer has opted out
       if (customer?.opt_out_reminders === true) {
         continue;
@@ -125,14 +125,14 @@ export async function GET(request: NextRequest) {
 
     // Group bookings by customer and completion date to handle multiple services same day
     const groupedBookings = new Map<string, {
-      customer: typeof bookings[0]['customer'];
+      customer: Customer;
       serviceTypes: ServiceType[];
       completedAt: string;
       bookingIds: string[];
     }>();
 
     for (const booking of bookingsToProcess) {
-      const customer = booking.customer as any;
+      const customer = booking.customer as Customer;
       const key = `${customer.id}_${new Date(booking.completed_at).toDateString()}`;
       
       if (!groupedBookings.has(key)) {

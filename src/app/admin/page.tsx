@@ -105,6 +105,14 @@ export default function AdminDashboard() {
             <h2 className="text-xl font-semibold text-gray-900">Reminders</h2>
             <p className="mt-2 text-gray-600">Manage 6-month service reminders</p>
           </Link>
+
+          <Link
+            href="/admin/availability"
+            className="block rounded-lg bg-white p-6 shadow hover:shadow-md transition-shadow"
+          >
+            <h2 className="text-xl font-semibold text-gray-900">Availability</h2>
+            <p className="mt-2 text-gray-600">Manage available booking dates</p>
+          </Link>
         </div>
       </main>
     </div>

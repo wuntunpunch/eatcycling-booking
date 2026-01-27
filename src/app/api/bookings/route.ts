@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { BookingFormData } from '@/lib/types';
 import { createCalendarEvent } from '@/lib/google-calendar';
 import { sendBookingConfirmation } from '@/lib/whatsapp';
+import {
+  isDateAvailable,
+  isFutureDate,
+  isWithinBookingWindow,
+} from '@/lib/availability-helpers';
+import { checkAuth } from '@/lib/auth-helpers';
 
 function getSupabaseClient() {
   return createClient(
@@ -23,6 +29,65 @@ export async function POST(request: NextRequest) {
         { message: 'Missing required fields' },
         { status: 400 }
       );
+    }
+
+    // Check for override parameter (admin only)
+    const { searchParams } = new URL(request.url);
+    const overrideAvailability = searchParams.get('override_availability') === 'true';
+    
+    let shouldOverride = false;
+    if (overrideAvailability) {
+      const auth = await checkAuth(request);
+      if (auth.authenticated) {
+        shouldOverride = true;
+        console.log('Availability override used by admin:', auth.email);
+      }
+    }
+
+    // Validate date availability (unless overridden)
+    if (!shouldOverride) {
+      // Fetch availability settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('availability_settings')
+        .select('*')
+        .eq('id', '00000000-0000-0000-0000-000000000000')
+        .single();
+
+      if (settingsError) {
+        console.error('Error fetching availability settings:', settingsError);
+        // Don't fail booking if settings fetch fails - allow it through
+      } else {
+        // Fetch excluded dates (only future dates)
+        const today = new Date().toISOString().split('T')[0];
+        const { data: excludedDates } = await supabase
+          .from('excluded_dates')
+          .select('*')
+          .gte('start_date', today);
+
+        // Validate date is in the future
+        if (!isFutureDate(body.date)) {
+          return NextResponse.json(
+            { message: 'Please select a future date' },
+            { status: 400 }
+          );
+        }
+
+        // Validate date is within booking window (6 months)
+        if (!isWithinBookingWindow(body.date, 6)) {
+          return NextResponse.json(
+            { message: 'Please select a date within the next 6 months' },
+            { status: 400 }
+          );
+        }
+
+        // Validate date is available
+        if (!isDateAvailable(body.date, settings, excludedDates || [])) {
+          return NextResponse.json(
+            { message: 'This date is not available for booking. Please select another date.' },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     // Normalize phone number (remove spaces/dashes)
@@ -122,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Include WhatsApp status in response for debugging (only in development)
-    const response: { booking: any; whatsappSent?: boolean; whatsappError?: string } = { booking };
+    const response: { booking: typeof booking; whatsappSent?: boolean; whatsappError?: string } = { booking };
     if (process.env.NODE_ENV === 'development') {
       response.whatsappSent = !whatsappError;
       if (whatsappError) {
