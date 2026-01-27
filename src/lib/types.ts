@@ -69,6 +69,7 @@ export interface AvailabilitySettings {
   id: string;
   exclude_weekends: boolean;
   exclude_sundays: boolean;
+  max_services_per_day: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -91,4 +92,5 @@ export interface ExcludedDateRange {
 export interface AvailabilitySettingsResponse {
   settings: AvailabilitySettings;
   excludedDates: ExcludedDate[];
+  bookingCounts?: { [date: string]: number };
 }

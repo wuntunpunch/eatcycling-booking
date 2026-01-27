@@ -63,13 +63,15 @@ export function isDateInRange(date: string, startDate: string, endDate: string |
  * @param settings - Availability settings
  * @param excludedDates - Array of excluded dates/ranges
  * @param timezone - Timezone to use (defaults to UK)
+ * @param bookingCount - Optional current booking count for this date (for service limit check)
  * @returns true if date is available, false otherwise
  */
 export function isDateAvailable(
   date: string,
   settings: AvailabilitySettings,
   excludedDates: ExcludedDate[],
-  timezone: string = UK_TIMEZONE
+  timezone: string = UK_TIMEZONE,
+  bookingCount?: number
 ): boolean {
   // Check if date is in the future
   if (!isFutureDate(date)) {
@@ -103,6 +105,13 @@ export function isDateAvailable(
   } else if (settings.exclude_sundays) {
     // Exclude only Sunday (0)
     if (dayOfWeek === 0) {
+      return false;
+    }
+  }
+
+  // Check service limit if provided
+  if (bookingCount !== undefined && settings.max_services_per_day !== null) {
+    if (bookingCount >= settings.max_services_per_day) {
       return false;
     }
   }

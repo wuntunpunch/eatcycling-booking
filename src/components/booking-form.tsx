@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ServiceType, SERVICE_LABELS, BookingFormData, AvailabilitySettingsResponse } from '@/lib/types';
@@ -29,6 +29,7 @@ export default function BookingForm() {
   const [availabilityData, setAvailabilityData] = useState<AvailabilitySettingsResponse | null>(null);
   const [dateError, setDateError] = useState('');
   const [loadingAvailability, setLoadingAvailability] = useState(true);
+  const [bookingCounts, setBookingCounts] = useState<{ [date: string]: number }>({});
 
   // Fetch availability settings on mount
   useEffect(() => {
@@ -38,6 +39,16 @@ export default function BookingForm() {
         if (response.ok) {
           const data: AvailabilitySettingsResponse = await response.json();
           setAvailabilityData(data);
+          setBookingCounts(data.bookingCounts || {});
+          // Debug: log booking counts to verify they're being fetched
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Booking counts loaded:', data.bookingCounts);
+            console.log('Max services per day:', data.settings.max_services_per_day);
+            // Check for January 29th specifically
+            if (data.bookingCounts?.['2026-01-29']) {
+              console.log('Jan 29 booking count:', data.bookingCounts['2026-01-29']);
+            }
+          }
         } else {
           console.error('Failed to fetch availability settings');
           // Allow submission even if API fails - server will validate
@@ -61,15 +72,23 @@ export default function BookingForm() {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
       
+      // Check if date is at capacity (should be excluded by excludeDates, but double-check)
+      const bookingCount = bookingCounts[dateStr] || 0;
+      const maxServices = availabilityData.settings.max_services_per_day;
+      const isAtCapacity = maxServices !== null && maxServices > 0 && bookingCount >= maxServices;
+      
       const available = isDateAvailable(
         dateStr,
         availabilityData.settings,
-        availabilityData.excludedDates
+        availabilityData.excludedDates,
+        'Europe/London',
+        undefined // Don't check service limit here - handled by excludeDates
       );
       
-      if (!available) {
+      if (!available || isAtCapacity) {
         setDateError('This date is not available for booking. Please select another date.');
         setFormData((prev) => ({ ...prev, date: '' }));
+        setSelectedDate(null);
       } else {
         setDateError('');
         setFormData((prev) => ({ ...prev, date: dateStr }));
@@ -78,7 +97,7 @@ export default function BookingForm() {
       setFormData((prev) => ({ ...prev, date: '' }));
       setDateError('');
     }
-  }, [selectedDate, availabilityData]);
+  }, [selectedDate, availabilityData, bookingCounts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,7 +160,7 @@ export default function BookingForm() {
   const maxDate = new Date();
   maxDate.setMonth(maxDate.getMonth() + 6); // 6 months max booking window
 
-  // Filter function for date picker
+  // Filter function for date picker - excludes weekends, excluded dates, etc.
   const filterDate = (date: Date) => {
     if (!availabilityData) return true; // Allow all dates if availability not loaded
     
@@ -151,12 +170,79 @@ export default function BookingForm() {
     const day = String(date.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
     
+    // Check availability rules (excluded dates, weekends, etc.)
+    // Dates at capacity are handled via excludeDates prop
     return isDateAvailable(
       dateStr,
       availabilityData.settings,
-      availabilityData.excludedDates
+      availabilityData.excludedDates,
+      'Europe/London',
+      undefined // Don't check service limit here - handled by excludeDates
     );
   };
+
+  // Get dates that are at capacity - these will be excluded (like holidays)
+  // Memoized to avoid recreating array on every render
+  const datesAtCapacity = useMemo((): Date[] => {
+    if (!availabilityData || !bookingCounts || Object.keys(bookingCounts).length === 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('getDatesAtCapacity: No availabilityData or bookingCounts', {
+          hasAvailabilityData: !!availabilityData,
+          hasBookingCounts: !!bookingCounts,
+          bookingCountsKeys: bookingCounts ? Object.keys(bookingCounts) : [],
+        });
+      }
+      return [];
+    }
+    
+    const dates: Date[] = [];
+    const maxServices = availabilityData.settings.max_services_per_day;
+    
+    if (maxServices === null || maxServices === 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('getDatesAtCapacity: No max services limit set', maxServices);
+      }
+      return dates;
+    }
+    
+    // Check all dates in bookingCounts
+    for (const [dateStr, count] of Object.entries(bookingCounts)) {
+      const countNum = typeof count === 'number' ? count : parseInt(String(count), 10);
+      if (countNum >= maxServices) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        // Create date at midnight in local timezone (important for react-datepicker matching)
+        const date = new Date(year, month - 1, day, 0, 0, 0, 0);
+        dates.push(date);
+        
+        // Debug logging
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`Date at capacity excluded: ${dateStr} (${countNum}/${maxServices})`, {
+            dateStr,
+            count: countNum,
+            maxServices,
+            dateObject: date,
+            dateISO: date.toISOString(),
+          });
+        }
+      }
+    }
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Total dates at capacity to exclude: ${dates.length}`, dates);
+      console.log('Full booking counts object:', JSON.stringify(bookingCounts, null, 2));
+      console.log('Max services:', maxServices);
+      // Specifically check for Jan 29
+      if (bookingCounts['2026-01-29']) {
+        console.log('Jan 29 details:', {
+          count: bookingCounts['2026-01-29'],
+          maxServices,
+          shouldExclude: bookingCounts['2026-01-29'] >= maxServices,
+        });
+      }
+    }
+    
+    return dates;
+  }, [availabilityData, bookingCounts]);
 
   if (submitStatus === 'success') {
     return (
@@ -218,8 +304,9 @@ export default function BookingForm() {
           <>
             <DatePicker
               selected={selectedDate}
-              onChange={(date) => setSelectedDate(date)}
+              onChange={(date: Date | null) => setSelectedDate(date)}
               filterDate={filterDate}
+              excludeDates={datesAtCapacity}
               minDate={today}
               maxDate={maxDate}
               dateFormat="yyyy-MM-dd"
