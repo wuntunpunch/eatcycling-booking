@@ -1,7 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { ServiceType, SERVICE_LABELS, BookingFormData } from '@/lib/types';
+import { useState, useEffect } from 'react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { ServiceType, SERVICE_LABELS, BookingFormData, AvailabilitySettingsResponse } from '@/lib/types';
+import { isDateAvailable } from '@/lib/availability-helpers';
 
 const SERVICES: ServiceType[] = [
   'basic_service',
@@ -22,12 +25,79 @@ export default function BookingForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [availabilityData, setAvailabilityData] = useState<AvailabilitySettingsResponse | null>(null);
+  const [dateError, setDateError] = useState('');
+  const [loadingAvailability, setLoadingAvailability] = useState(true);
+
+  // Fetch availability settings on mount
+  useEffect(() => {
+    async function fetchAvailability() {
+      try {
+        const response = await fetch('/api/availability');
+        if (response.ok) {
+          const data: AvailabilitySettingsResponse = await response.json();
+          setAvailabilityData(data);
+        } else {
+          console.error('Failed to fetch availability settings');
+          // Allow submission even if API fails - server will validate
+        }
+      } catch (error) {
+        console.error('Error fetching availability:', error);
+        // Allow submission even if API fails - server will validate
+      } finally {
+        setLoadingAvailability(false);
+      }
+    }
+    fetchAvailability();
+  }, []);
+
+  // Validate selected date
+  useEffect(() => {
+    if (selectedDate && availabilityData) {
+      // Format date as YYYY-MM-DD in local timezone to avoid UTC conversion issues
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const available = isDateAvailable(
+        dateStr,
+        availabilityData.settings,
+        availabilityData.excludedDates
+      );
+      
+      if (!available) {
+        setDateError('This date is not available for booking. Please select another date.');
+        setFormData((prev) => ({ ...prev, date: '' }));
+      } else {
+        setDateError('');
+        setFormData((prev) => ({ ...prev, date: dateStr }));
+      }
+    } else if (selectedDate === null) {
+      setFormData((prev) => ({ ...prev, date: '' }));
+      setDateError('');
+    }
+  }, [selectedDate, availabilityData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus('idle');
     setErrorMessage('');
+
+    // Final validation
+    if (!formData.date) {
+      setErrorMessage('Please select a date');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (dateError) {
+      setErrorMessage(dateError);
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/bookings', {
@@ -50,6 +120,7 @@ export default function BookingForm() {
         date: '',
         bike_details: '',
       });
+      setSelectedDate(null);
     } catch (error) {
       setSubmitStatus('error');
       setErrorMessage(error instanceof Error ? error.message : 'Something went wrong');
@@ -65,8 +136,27 @@ export default function BookingForm() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Get minimum date (today)
-  const today = new Date().toISOString().split('T')[0];
+  // Get date constraints
+  const today = new Date();
+  const maxDate = new Date();
+  maxDate.setMonth(maxDate.getMonth() + 6); // 6 months max booking window
+
+  // Filter function for date picker
+  const filterDate = (date: Date) => {
+    if (!availabilityData) return true; // Allow all dates if availability not loaded
+    
+    // Format date as YYYY-MM-DD in local timezone to avoid UTC conversion issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+    
+    return isDateAvailable(
+      dateStr,
+      availabilityData.settings,
+      availabilityData.excludedDates
+    );
+  };
 
   if (submitStatus === 'success') {
     return (
@@ -76,7 +166,10 @@ export default function BookingForm() {
           Thanks {formData.name || 'for your booking'}! We&apos;ll be in touch via WhatsApp to confirm your appointment.
         </p>
         <button
-          onClick={() => setSubmitStatus('idle')}
+          onClick={() => {
+            setSubmitStatus('idle');
+            setSelectedDate(null);
+          }}
           className="mt-4 rounded-md bg-[#FE13FE] px-4 py-2 text-white hover:bg-[rgba(254,19,254,0.8)]"
         >
           Book Another Service
@@ -117,16 +210,31 @@ export default function BookingForm() {
         <label htmlFor="date" className="block text-sm font-medium text-gray-700">
           Preferred Date <span className="text-red-500">*</span>
         </label>
-        <input
-          type="date"
-          id="date"
-          name="date"
-          value={formData.date}
-          onChange={handleChange}
-          min={today}
-          required
-          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
-        />
+        {loadingAvailability ? (
+          <div className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm bg-gray-50">
+            <span className="text-gray-500 text-sm">Loading available dates...</span>
+          </div>
+        ) : (
+          <>
+            <DatePicker
+              selected={selectedDate}
+              onChange={(date) => setSelectedDate(date)}
+              filterDate={filterDate}
+              minDate={today}
+              maxDate={maxDate}
+              dateFormat="yyyy-MM-dd"
+              placeholderText="Select a date"
+              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
+              required
+            />
+            {dateError && (
+              <p className="mt-1 text-sm text-red-600">{dateError}</p>
+            )}
+            {!dateError && formData.date && (
+              <p className="mt-1 text-sm text-green-600">Date selected: {formData.date}</p>
+            )}
+          </>
+        )}
       </div>
 
       <div>
@@ -193,7 +301,7 @@ export default function BookingForm() {
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !!dateError || !formData.date}
         className="w-full rounded-md bg-medium-blue px-4 py-3 text-white font-medium hover:bg-dark-blue focus:outline-none focus:ring-2 focus:ring-medium-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? 'Booking...' : 'Book Service'}

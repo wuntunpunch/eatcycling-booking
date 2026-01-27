@@ -156,7 +156,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email: email.trim() }),
       });
 
-      let data: any = {};
+      let data: Record<string, unknown> = {};
       const contentType = response.headers.get('content-type');
       
       // Read response body once
@@ -251,7 +251,7 @@ export default function LoginPage() {
 
   const handleResend = () => {
     if (resendCooldown > 0) return;
-    handleSubmit(new Event('submit') as any);
+    handleSubmit(new Event('submit') as unknown as React.FormEvent);
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {

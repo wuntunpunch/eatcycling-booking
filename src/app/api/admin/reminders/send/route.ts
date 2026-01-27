@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { sendServiceReminder } from '@/lib/whatsapp';
-import { ServiceType } from '@/lib/types';
+import { ServiceType, Customer, BookingWithCustomer } from '@/lib/types';
 
 function getSupabaseClient() {
   return createClient(
@@ -91,14 +91,14 @@ export async function POST(request: NextRequest) {
 
     // Group by customer and completion date
     const grouped = new Map<string, {
-      customer: any;
+      customer: Customer;
       serviceTypes: ServiceType[];
       completedAt: string;
       bookingIds: string[];
     }>();
 
     for (const booking of bookings) {
-      const customer = booking.customer as any;
+      const customer = booking.customer as Customer;
       // Skip if customer has opted out
       if (customer?.opt_out_reminders === true) {
         continue;

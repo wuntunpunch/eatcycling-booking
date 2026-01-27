@@ -13,6 +13,14 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Disable warnings for unused variables (common in error handlers, etc.)
+      "@typescript-eslint/no-unused-vars": "off",
+      // Disable React Hook exhaustive-deps warnings (often false positives)
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

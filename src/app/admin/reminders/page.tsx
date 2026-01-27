@@ -36,8 +36,8 @@ export default function RemindersPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'due' | 'sent' | 'failed' | 'stats'>('due');
   const [dueReminders, setDueReminders] = useState<Reminder[]>([]);
-  const [sentReminders, setSentReminders] = useState<any[]>([]);
-  const [failedReminders, setFailedReminders] = useState<any[]>([]);
+  const [sentReminders, setSentReminders] = useState<Reminder[]>([]);
+  const [failedReminders, setFailedReminders] = useState<Reminder[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<Set<string>>(new Set());
@@ -277,7 +277,7 @@ export default function RemindersPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {sentReminders.map((reminder: any, idx: number) => (
+                        {sentReminders.map((reminder: Reminder, idx: number) => (
                           <tr key={idx}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
@@ -336,7 +336,7 @@ export default function RemindersPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {failedReminders.map((reminder: any, idx: number) => (
+                        {failedReminders.map((reminder: Reminder, idx: number) => (
                           <tr key={idx}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { Customer, BookingWithCustomer } from '@/lib/types';
 
 function getSupabaseClient() {
   return createClient(
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
       // Filter out customers who have opted out
       const grouped = new Map();
       for (const booking of data || []) {
-        const customer = booking.customer as any;
+        const customer = booking.customer as Customer;
         // Skip if customer has opted out
         if (customer?.opt_out_reminders === true) {
           continue;
