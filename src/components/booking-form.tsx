@@ -317,9 +317,9 @@ export default function BookingForm() {
             {dateError && (
               <p className="mt-1 text-sm text-red-600">{dateError}</p>
             )}
-            {!dateError && formData.date && (
-              <p className="mt-1 text-sm text-green-600">Date selected: {formData.date}</p>
-            )}
+            <p className="mt-2 text-sm text-gray-600 italic">
+              Drop off your bike in the morning on your selected date. You can also drop off the afternoon before if that&apos;s easier.
+            </p>
           </>
         )}
       </div>

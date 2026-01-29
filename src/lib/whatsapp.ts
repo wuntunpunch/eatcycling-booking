@@ -214,17 +214,36 @@ export async function sendBookingConfirmation({
 
   // Check if template is configured
   const templateName = process.env.WHATSAPP_BOOKING_TEMPLATE_NAME;
-  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_GB';
+  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en';
 
   if (templateName) {
     // Use template message (required for outbound messages)
     // Template should have placeholders like: {{1}} for name, {{2}} for date, {{3}} for service
-    return sendWhatsAppTemplateMessage(
-      customerPhone,
-      templateName,
-      templateLanguage,
-      [customerName, formattedDate, SERVICE_LABELS[serviceType]]
-    );
+    try {
+      return await sendWhatsAppTemplateMessage(
+        customerPhone,
+        templateName,
+        templateLanguage,
+        [customerName, formattedDate, SERVICE_LABELS[serviceType]]
+      );
+    } catch (error) {
+      // If template fails (e.g., not approved, wrong name/language), fall back to free-form message
+      console.warn('Template message failed, falling back to free-form message:', error);
+      const message = `Hi ${customerName}! 🚴
+
+Your booking with EAT Cycling has been confirmed:
+
+📅 ${formattedDate}
+🔧 ${SERVICE_LABELS[serviceType]}
+
+Please drop your bike off on ${formattedDate} or the afternoon before if that's easier.
+
+We'll be in touch if we need any more details. See you soon!
+
+- Eddie, EAT Cycling`;
+
+      return sendWhatsAppMessage(customerPhone, message);
+    }
   } else {
     // Try free-form message (only works within 24-hour window)
     const message = `Hi ${customerName}! 🚴
@@ -233,6 +252,8 @@ Your booking with EAT Cycling has been confirmed:
 
 📅 ${formattedDate}
 🔧 ${SERVICE_LABELS[serviceType]}
+
+Please drop your bike off on ${formattedDate} or the afternoon before if that's easier.
 
 We'll be in touch if we need any more details. See you soon!
 
@@ -253,7 +274,7 @@ export async function sendBikeReadyNotification({
 }) {
   // Check if template is configured
   const templateName = process.env.WHATSAPP_READY_TEMPLATE_NAME;
-  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_GB';
+  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en';
 
   if (templateName) {
     // Use template message (required for outbound messages)
@@ -314,7 +335,7 @@ export async function sendServiceReminder({
 
   // Check if template is configured
   const templateName = process.env.WHATSAPP_REMINDER_TEMPLATE_NAME;
-  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en_GB';
+  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en';
 
   if (templateName) {
     // Use template message (required for outbound messages)
