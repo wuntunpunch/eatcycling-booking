@@ -87,6 +87,25 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           );
         }
+
+        // Check service limit (if set)
+        if (settings.max_services_per_day !== null) {
+          // Count active bookings for this date (pending and ready statuses)
+          const { count, error: countError } = await supabase
+            .from('bookings')
+            .select('*', { count: 'exact', head: true })
+            .eq('date', body.date)
+            .in('status', ['pending', 'ready']);
+
+          if (!countError && count !== null) {
+            if (count >= settings.max_services_per_day) {
+              return NextResponse.json(
+                { message: 'This date is not available for booking. Please select another date.' },
+                { status: 400 }
+              );
+            }
+          }
+        }
       }
     }
 
