@@ -100,8 +100,10 @@ A clean, focused booking interface that **customers can access directly**, and *
   - Strip and rebuild
   - Bosch diagnostics
 
-- **Simple Date Picker**: Date-based booking (no time slots)
+- **Smart Date Picker**: Date-based booking (no time slots)
   - Customers select a date, Eddie manages his own schedule
+  - Automatically excludes unavailable dates (weekends, holidays, dates at capacity)
+  - Real-time availability checking prevents overbooking
 
 - **Customer Details**:
   - Name (required)
@@ -134,7 +136,30 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 - See booking patterns and service preferences
 - Quick access to customer contact information
 
-**3. Service Reminders**
+**3. Availability Management**
+- **Day Exclusions**: Configure which days of the week are unavailable
+  - Exclude weekends (Saturday + Sunday) toggle
+  - Exclude Sundays only option
+- **Specific Date Exclusions**: Block individual dates or date ranges
+  - Add single dates or date ranges (e.g., holidays, vacation periods)
+  - Optional reason field for each exclusion
+  - Warnings shown when excluding dates with existing bookings
+  - View past exclusions for historical reference
+- **Automatic Availability Checking**: Booking form automatically prevents bookings on excluded dates
+- **Visual Calendar**: See excluded dates at a glance
+
+**4. Daily Workload Control (Service Limits)**
+- **Maximum Services Per Day**: Set a daily booking limit to control workload
+  - Can be set to unlimited (default) or a specific number
+  - Prevents overbooking and helps manage capacity
+- **Visual Calendar View**: See booking counts for each day
+  - Dates at capacity highlighted in red
+  - Shows current bookings vs. limit (e.g., "5/8")
+  - Month-by-month navigation
+- **Smart Warnings**: Alerts when setting limits that conflict with existing bookings
+- **Real-Time Updates**: Booking counts update automatically as bookings are created
+
+**5. Service Reminders**
 - Automated 6-month service reminder system
 - View due reminders (customers who completed service 6 months ago)
 - Manual reminder sending with retry capability
@@ -181,6 +206,9 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 - **Row-Level Security**: Secure data access policies
 - **Fallback Authentication**: Password-based login when email links fail
 - **Message Logging**: Complete audit trail of all communications
+- **Availability Management**: Flexible date exclusion system with day-of-week and specific date controls
+- **Daily Workload Control**: Service limits prevent overbooking and help manage capacity
+- **Real-Time Availability Checking**: Server-side and client-side validation ensures accurate booking availability
 - **Error Handling**: Graceful degradation if integrations fail
 - **Responsive Design**: Works on all devices
 
@@ -235,6 +263,8 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 
 - **Date-based booking**: No rigid time slots - Eddie manages his schedule
 - **Phone-first**: Matches how customers actually identify themselves
+- **Availability control**: Flexible system to exclude weekends, holidays, or specific dates
+- **Daily workload management**: Set maximum services per day to prevent overbooking
 - **Service reminders**: Automated 6-month follow-up system
 - **Customer history**: Easy to see past bookings and patterns
 
@@ -259,8 +289,10 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 3. **Staff Empowerment**: Staff can create bookings directly - no more manual processes
 4. **Better Organization**: All bookings in one dashboard
 5. **Time Savings**: Automated calendar and WhatsApp notifications
-6. **Customer Insights**: Easy access to customer history and patterns
-7. **Professional Image**: Custom booking system reflects business quality
+6. **Availability Control**: Easy management of available dates (exclude weekends, holidays, specific dates)
+7. **Workload Management**: Set daily service limits to prevent overbooking and manage capacity
+8. **Customer Insights**: Easy access to customer history and patterns
+9. **Professional Image**: Custom booking system reflects business quality
 
 ### For Customers
 
@@ -274,9 +306,11 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 1. **Complete Booking Capture**: All bookings (customer and staff-created) in unified system
 2. **Eliminated Manual Processes**: No more paper/spreadsheets for phone/walk-in bookings
 3. **Automated Workflows**: Calendar events and notifications happen automatically
-4. **Customer Retention**: 6-month reminder system encourages repeat business
-5. **Better Tracking**: Complete history of all bookings and communications
-6. **Mobile-Friendly**: Admin dashboard works on any device - staff can create bookings on mobile
+4. **Availability Management**: Prevent bookings on unavailable dates automatically
+5. **Capacity Control**: Daily service limits prevent overbooking and help balance workload
+6. **Customer Retention**: 6-month reminder system encourages repeat business
+7. **Better Tracking**: Complete history of all bookings and communications
+8. **Mobile-Friendly**: Admin dashboard works on any device - staff can create bookings on mobile
 
 ---
 
@@ -288,6 +322,8 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 - **Unified Booking System**: All bookings (customer and staff) in one place
 - **Staff Efficiency**: Staff can create bookings directly - no manual processes
 - **Streamlined Operations**: Automated calendar and notification workflows
+- **Availability Control**: Easy management of available dates prevents booking conflicts
+- **Workload Management**: Daily service limits help balance capacity and prevent overbooking
 - **Better Customer Experience**: WhatsApp-first communication approach
 
 ### Long-Term Value
@@ -314,6 +350,8 @@ By moving away from a generic, overpriced customer-only booking widget to a cust
 - **Unifies booking processes** (customers AND staff can create bookings)
 - **Eliminates manual work** (no more paper/spreadsheets for phone/walk-in bookings)
 - **Improves efficiency** (automated workflows)
+- **Controls availability** (flexible date exclusions and daily workload limits)
+- **Prevents overbooking** (automatic capacity management)
 - **Enhances customer experience** (WhatsApp-first approach)
 - **Provides better insights** (complete booking history regardless of source)
 - **Scales with the business** (easy to extend and customize)
