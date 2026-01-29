@@ -22,6 +22,7 @@ export default function BookingsPage() {
   const [displayCount, setDisplayCount] = useState(5);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const dropdownMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { showToast, ToastComponent } = useToast();
 
   // Close dropdown when clicking outside
@@ -29,7 +30,14 @@ export default function BookingsPage() {
     function handleClickOutside(event: MouseEvent) {
       if (openDropdown) {
         const dropdown = dropdownRefs.current[openDropdown];
-        if (dropdown && !dropdown.contains(event.target as Node)) {
+        const dropdownMenu = dropdownMenuRefs.current[openDropdown];
+        const target = event.target as Node;
+        
+        // Check if click is outside both the button container and the dropdown menu
+        const isOutsideButton = dropdown && !dropdown.contains(target);
+        const isOutsideMenu = dropdownMenu && !dropdownMenu.contains(target);
+        
+        if (isOutsideButton && isOutsideMenu) {
           setOpenDropdown(null);
         }
       }
@@ -392,8 +400,12 @@ export default function BookingsPage() {
         });
       } else {
         setDropdownPosition(null);
+        // Clean up dropdown menu ref when closing
+        if (dropdownMenuRefs.current[booking.id]) {
+          dropdownMenuRefs.current[booking.id] = null;
+        }
       }
-    }, [isOpen]);
+    }, [isOpen, booking.id]);
 
     if (booking.status === 'complete') {
       return <span className="text-gray-400">Complete</span>;
@@ -454,6 +466,9 @@ export default function BookingsPage() {
 
         {isOpen && dropdownPosition && typeof window !== 'undefined' && createPortal(
           <div 
+            ref={(el) => {
+              dropdownMenuRefs.current[booking.id] = el;
+            }}
             className="fixed w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
             style={{
               top: `${dropdownPosition.top}px`,
