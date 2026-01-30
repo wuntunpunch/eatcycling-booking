@@ -6,6 +6,15 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { ServiceType, SERVICE_LABELS, BookingFormData, AvailabilitySettingsResponse } from '@/lib/types';
 import { isDateAvailable } from '@/lib/availability-helpers';
 import { useToast } from '@/components/toast';
+import {
+  generateGoogleCalendarUrl,
+  generateICalFile,
+  downloadICalFile,
+  isIOS,
+  isAndroid,
+  trackCalendarClick,
+  type CalendarBookingData,
+} from '@/lib/calendar-links';
 
 const SERVICES: ServiceType[] = [
   'basic_service',
@@ -32,7 +41,16 @@ export default function BookingForm() {
   const [loadingAvailability, setLoadingAvailability] = useState(true);
   const [bookingCounts, setBookingCounts] = useState<{ [date: string]: number }>({});
   const [bookingReference, setBookingReference] = useState<string | null>(null);
+  const [bookingData, setBookingData] = useState<CalendarBookingData | null>(null);
+  const [calendarError, setCalendarError] = useState(false);
   const { showToast, ToastComponent } = useToast();
+
+  // Device detection for smart calendar button display
+  const deviceType = useMemo(() => {
+    if (isIOS()) return 'ios';
+    if (isAndroid()) return 'android';
+    return 'desktop';
+  }, []);
 
   // Fetch availability settings on mount
   useEffect(() => {
@@ -134,8 +152,40 @@ export default function BookingForm() {
       }
 
       const result = await response.json();
-      // Store reference number from booking response
-      setBookingReference(result.booking?.reference_number || null);
+      const booking = result.booking;
+      
+      // Store booking data for calendar integration
+      const bookingRef = booking?.reference_number || null;
+      setBookingReference(bookingRef);
+      
+      // Store calendar booking data before clearing form
+      if (booking?.date && booking?.service_type) {
+        setBookingData({
+          date: booking.date,
+          service_type: booking.service_type,
+          reference_number: bookingRef,
+        });
+        
+        // Test calendar generation - hide section if it fails
+        try {
+          generateGoogleCalendarUrl({
+            date: booking.date,
+            service_type: booking.service_type,
+            reference_number: bookingRef,
+          });
+          generateICalFile({
+            date: booking.date,
+            service_type: booking.service_type,
+            reference_number: bookingRef,
+          });
+          setCalendarError(false);
+        } catch (error) {
+          console.error('Calendar generation test failed:', error);
+          setCalendarError(true);
+        }
+      } else {
+        setCalendarError(true);
+      }
 
       setSubmitStatus('success');
       setFormData({
@@ -303,11 +353,105 @@ export default function BookingForm() {
               </p>
             </div>
           )}
+          {!calendarError && bookingData && (
+            <div className="mt-6">
+              <p className="text-sm text-gray-600 mb-3">Add to your calendar:</p>
+              <div className="flex flex-row gap-4 justify-center items-start">
+                {/* Google Calendar Button */}
+                <button
+                  onClick={() => {
+                    if (!bookingData) return;
+                    try {
+                      trackCalendarClick('google', bookingData.reference_number);
+                      const url = generateGoogleCalendarUrl(bookingData);
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    } catch (error) {
+                      console.error('Error opening Google Calendar:', error);
+                      showToast('Failed to open Google Calendar', 'error');
+                    }
+                  }}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-lg hover:opacity-90 transition-opacity ${
+                    deviceType === 'android' ? 'bg-[#FE13FE]' : 'bg-[#4285F4]'
+                  }`}
+                  aria-label="Add to Google Calendar"
+                  title="Add to Google Calendar"
+                >
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5v-5z" />
+                  </svg>
+                  <span className="text-xs text-white font-medium">Google</span>
+                </button>
+                
+                {/* Apple Calendar Button */}
+                <button
+                  onClick={() => {
+                    if (!bookingData) return;
+                    try {
+                      trackCalendarClick('apple', bookingData.reference_number);
+                      downloadICalFile(bookingData);
+                    } catch (error) {
+                      console.error('Error downloading Apple Calendar file:', error);
+                      showToast('Failed to download calendar file', 'error');
+                    }
+                  }}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-lg hover:opacity-90 transition-opacity ${
+                    deviceType === 'ios' ? 'bg-[#FE13FE]' : 'bg-gray-600'
+                  }`}
+                  aria-label="Add to Apple Calendar"
+                  title="Add to Apple Calendar"
+                >
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-2 5h-5v5h5v-5z" />
+                  </svg>
+                  <span className="text-xs text-white font-medium">Apple</span>
+                </button>
+                
+                {/* Outlook Button */}
+                <button
+                  onClick={() => {
+                    if (!bookingData) return;
+                    try {
+                      trackCalendarClick('outlook', bookingData.reference_number);
+                      downloadICalFile(bookingData);
+                    } catch (error) {
+                      console.error('Error downloading Outlook calendar file:', error);
+                      showToast('Failed to download calendar file', 'error');
+                    }
+                  }}
+                  className="flex flex-col items-center gap-1 p-3 rounded-lg bg-[#0078D4] hover:opacity-90 transition-opacity"
+                  aria-label="Add to Outlook"
+                  title="Add to Outlook"
+                >
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path d="M7.5 6.5v11L12 20l4.5-2.5v-11L12 4 7.5 6.5zm5.5 2.5l3 1.5v6l-3 1.5-3-1.5v-6l3-1.5z" />
+                  </svg>
+                  <span className="text-xs text-white font-medium">Outlook</span>
+                </button>
+              </div>
+            </div>
+          )}
           <button
             onClick={() => {
               setSubmitStatus('idle');
               setSelectedDate(null);
               setBookingReference(null);
+              setBookingData(null);
+              setCalendarError(false);
             }}
             className="mt-4 rounded-md bg-[#FE13FE] px-4 py-2 text-white hover:bg-[rgba(254,19,254,0.8)]"
           >
