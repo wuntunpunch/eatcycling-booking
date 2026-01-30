@@ -9,6 +9,7 @@ import {
   isWithinBookingWindow,
 } from '@/lib/availability-helpers';
 import { checkAuth } from '@/lib/auth-helpers';
+import { generateReferenceNumber } from '@/lib/booking-helpers';
 
 function getSupabaseClient() {
   return createClient(
@@ -150,6 +151,19 @@ export async function POST(request: NextRequest) {
         .eq('id', customer.id);
     }
 
+    // Generate reference number (optional - booking succeeds even if this fails)
+    const bookingYear = new Date(body.date).getFullYear();
+    let referenceNumber: string | null = null;
+    try {
+      referenceNumber = await generateReferenceNumber(supabase, bookingYear);
+      if (!referenceNumber) {
+        console.warn('Reference number generation failed, continuing without reference');
+      }
+    } catch (error) {
+      console.error('Error generating reference number:', error);
+      // Continue without reference - booking succeeds
+    }
+
     // Create booking
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -159,6 +173,7 @@ export async function POST(request: NextRequest) {
         date: body.date,
         bike_details: body.bike_details,
         status: 'pending',
+        reference_number: referenceNumber,
       })
       .select()
       .single();
@@ -193,6 +208,7 @@ export async function POST(request: NextRequest) {
         customerPhone: normalizedPhone,
         serviceType: body.service_type,
         date: body.date,
+        referenceNumber: referenceNumber || undefined,
       });
       console.log('WhatsApp confirmation sent successfully to', normalizedPhone);
     } catch (error) {

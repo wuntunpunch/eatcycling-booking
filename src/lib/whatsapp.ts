@@ -200,11 +200,13 @@ export async function sendBookingConfirmation({
   customerPhone,
   serviceType,
   date,
+  referenceNumber,
 }: {
   customerName: string;
   customerPhone: string;
   serviceType: ServiceType;
   date: string;
+  referenceNumber?: string;
 }) {
   const formattedDate = new Date(date).toLocaleDateString('en-GB', {
     weekday: 'long',
@@ -212,19 +214,26 @@ export async function sendBookingConfirmation({
     month: 'long',
   });
 
+  // Format reference number for display
+  const referenceText = referenceNumber ? `🔖 Ref: ${referenceNumber}` : '';
+
   // Check if template is configured
   const templateName = process.env.WHATSAPP_BOOKING_TEMPLATE_NAME;
   const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en';
 
   if (templateName) {
     // Use template message (required for outbound messages)
-    // Template should have placeholders like: {{1}} for name, {{2}} for date, {{3}} for service
+    // Template should have placeholders like: {{1}} for name, {{2}} for date, {{3}} for service, {{4}} for reference
     try {
+      const templateParams = referenceNumber
+        ? [customerName, formattedDate, SERVICE_LABELS[serviceType], referenceNumber]
+        : [customerName, formattedDate, SERVICE_LABELS[serviceType]];
+      
       return await sendWhatsAppTemplateMessage(
         customerPhone,
         templateName,
         templateLanguage,
-        [customerName, formattedDate, SERVICE_LABELS[serviceType]]
+        templateParams
       );
     } catch (error) {
       // If template fails (e.g., not approved, wrong name/language), fall back to free-form message
@@ -235,8 +244,8 @@ Your booking with EAT Cycling has been confirmed:
 
 📅 ${formattedDate}
 🔧 ${SERVICE_LABELS[serviceType]}
-
-Please drop your bike off on ${formattedDate} or the afternoon before if that's easier.
+${referenceText ? `${referenceText}\n` : ''}
+Please drop your bike off on the date above or the afternoon before if that's easier.
 
 We'll be in touch if we need any more details. See you soon!
 
@@ -252,8 +261,8 @@ Your booking with EAT Cycling has been confirmed:
 
 📅 ${formattedDate}
 🔧 ${SERVICE_LABELS[serviceType]}
-
-Please drop your bike off on ${formattedDate} or the afternoon before if that's easier.
+${referenceText ? `${referenceText}\n` : ''}
+Please drop your bike off on the date above or the afternoon before if that's easier.
 
 We'll be in touch if we need any more details. See you soon!
 

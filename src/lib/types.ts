@@ -31,6 +31,7 @@ export interface Booking {
   bike_details: string;
   status: BookingStatus;
   notes: string | null;
+  reference_number: string | null;
   completed_at?: string;
   reminder_sent_at?: string;
   created_at: string;

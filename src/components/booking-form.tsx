@@ -5,6 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ServiceType, SERVICE_LABELS, BookingFormData, AvailabilitySettingsResponse } from '@/lib/types';
 import { isDateAvailable } from '@/lib/availability-helpers';
+import { useToast } from '@/components/toast';
 
 const SERVICES: ServiceType[] = [
   'basic_service',
@@ -30,6 +31,8 @@ export default function BookingForm() {
   const [dateError, setDateError] = useState('');
   const [loadingAvailability, setLoadingAvailability] = useState(true);
   const [bookingCounts, setBookingCounts] = useState<{ [date: string]: number }>({});
+  const [bookingReference, setBookingReference] = useState<string | null>(null);
+  const { showToast, ToastComponent } = useToast();
 
   // Fetch availability settings on mount
   useEffect(() => {
@@ -129,6 +132,10 @@ export default function BookingForm() {
         const error = await response.json();
         throw new Error(error.message || 'Failed to create booking');
       }
+
+      const result = await response.json();
+      // Store reference number from booking response
+      setBookingReference(result.booking?.reference_number || null);
 
       setSubmitStatus('success');
       setFormData({
@@ -244,23 +251,70 @@ export default function BookingForm() {
     return dates;
   }, [availabilityData, bookingCounts]);
 
+  const handleCopyReference = async (reference: string) => {
+    try {
+      await navigator.clipboard.writeText(reference);
+      showToast('Reference copied to clipboard', 'success');
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      showToast('Failed to copy reference', 'error');
+    }
+  };
+
   if (submitStatus === 'success') {
     return (
-      <div className="rounded-lg bg-[rgba(254,19,254,0.1)] p-6 text-center border border-[rgba(254,19,254,0.2)]">
-        <h2 className="text-xl font-semibold text-[#FE13FE]">Booking Confirmed!</h2>
-        <p className="mt-2 text-gray-700">
-          Thanks {formData.name || 'for your booking'}! We&apos;ll be in touch via WhatsApp to confirm your appointment.
-        </p>
-        <button
-          onClick={() => {
-            setSubmitStatus('idle');
-            setSelectedDate(null);
-          }}
-          className="mt-4 rounded-md bg-[#FE13FE] px-4 py-2 text-white hover:bg-[rgba(254,19,254,0.8)]"
-        >
-          Book Another Service
-        </button>
-      </div>
+      <>
+        {ToastComponent}
+        <div className="rounded-lg bg-[rgba(254,19,254,0.1)] p-6 text-center border border-[rgba(254,19,254,0.2)]">
+          <h2 className="text-xl font-semibold text-[#FE13FE]">Booking Confirmed!</h2>
+          <p className="mt-2 text-gray-700">
+            Thanks {formData.name || 'for your booking'}! We&apos;ll be in touch via WhatsApp to confirm your appointment.
+          </p>
+          {bookingReference && (
+            <div className="mt-4 p-4 bg-white rounded-md border border-gray-200">
+              <p className="text-sm text-gray-600 mb-2">Your booking reference:</p>
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-lg md:text-xl font-mono font-semibold text-gray-900">
+                  {bookingReference}
+                </span>
+                <button
+                  onClick={() => handleCopyReference(bookingReference)}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                  aria-label="Copy reference number"
+                  title="Copy reference number"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Please quote this reference when dropping off your bike
+              </p>
+            </div>
+          )}
+          <button
+            onClick={() => {
+              setSubmitStatus('idle');
+              setSelectedDate(null);
+              setBookingReference(null);
+            }}
+            className="mt-4 rounded-md bg-[#FE13FE] px-4 py-2 text-white hover:bg-[rgba(254,19,254,0.8)]"
+          >
+            Book Another Service
+          </button>
+        </div>
+      </>
     );
   }
 
