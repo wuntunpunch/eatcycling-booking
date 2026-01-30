@@ -21,6 +21,9 @@ export default function BookingsPage() {
   const [modalBooking, setModalBooking] = useState<BookingWithCustomer | null>(null);
   const [displayCount, setDisplayCount] = useState(5);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortColumn, setSortColumn] = useState<'date' | 'reference' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dropdownMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { showToast, ToastComponent } = useToast();
@@ -306,11 +309,24 @@ export default function BookingsPage() {
     });
   }
 
+  // Filter bookings by search query
+  const filteredBookings = useMemo(() => {
+    if (!searchQuery.trim()) return bookings;
+
+    const query = searchQuery.toLowerCase();
+    return bookings.filter((booking) => {
+      const matchesReference = booking.reference_number?.toLowerCase().includes(query);
+      const matchesName = booking.customer.name.toLowerCase().includes(query);
+      const matchesPhone = booking.customer.phone.includes(query);
+      return matchesReference || matchesName || matchesPhone;
+    });
+  }, [bookings, searchQuery]);
+
   const { todayBookings, otherBookings } = useMemo(() => {
     const today: BookingWithCustomer[] = [];
     const others: BookingWithCustomer[] = [];
 
-    bookings.forEach((booking) => {
+    filteredBookings.forEach((booking) => {
       if (isToday(booking.date)) {
         today.push(booking);
       } else {
@@ -318,11 +334,26 @@ export default function BookingsPage() {
       }
     });
 
+    // Apply sorting if specified
+    let sortedToday = sortBookingsByStatus(today);
+    let sortedOthers = sortBookingsByDate(others);
+
+    if (sortColumn === 'reference') {
+      const sortFn = (a: BookingWithCustomer, b: BookingWithCustomer) => {
+        const aRef = a.reference_number || '';
+        const bRef = b.reference_number || '';
+        const comparison = aRef.localeCompare(bRef);
+        return sortDirection === 'asc' ? comparison : -comparison;
+      };
+      sortedToday = [...sortedToday].sort(sortFn);
+      sortedOthers = [...sortedOthers].sort(sortFn);
+    }
+
     return {
-      todayBookings: sortBookingsByStatus(today),
-      otherBookings: sortBookingsByDate(others),
+      todayBookings: sortedToday,
+      otherBookings: sortedOthers,
     };
-  }, [bookings]);
+  }, [filteredBookings, sortColumn, sortDirection]);
 
   const filteredOtherBookings = useMemo(() => {
     return showComplete
@@ -342,6 +373,15 @@ export default function BookingsPage() {
 
   function handleLoadMore() {
     setDisplayCount((prev) => prev + 5);
+  }
+
+  function handleSortReference() {
+    if (sortColumn === 'reference') {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn('reference');
+      setSortDirection('asc');
+    }
   }
 
 
@@ -639,12 +679,13 @@ export default function BookingsPage() {
       <div className="overflow-x-auto overflow-y-visible">
         <table className="w-full table-fixed divide-y divide-gray-200">
           <colgroup>
-            {showCheckboxes && <col className="w-[5%]" />}
+            {showCheckboxes && <col className="w-[4%]" />}
+            <col className="w-[10%]" />
             <col className="w-[12%]" />
-            <col className="w-[23%]" />
-            <col className="w-[18%]" />
-            <col className="w-[12%]" />
-            <col className="w-[30%]" />
+            <col className="w-[20%]" />
+            <col className="w-[15%]" />
+            <col className="w-[10%]" />
+            <col className="w-[29%]" />
           </colgroup>
           <thead className="bg-gray-50">
             <tr>
@@ -663,6 +704,19 @@ export default function BookingsPage() {
               )}
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Date
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                <button
+                  onClick={handleSortReference}
+                  className="flex items-center gap-1 hover:text-gray-700"
+                >
+                  Reference
+                  {sortColumn === 'reference' && (
+                    <span className="text-gray-400">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </button>
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Customer
@@ -701,6 +755,13 @@ export default function BookingsPage() {
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {new Date(booking.date).toLocaleDateString('en-GB')}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {booking.reference_number ? (
+                      <span className="font-mono text-gray-900">{booking.reference_number}</span>
+                    ) : (
+                      <span className="text-gray-400 italic">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
@@ -758,13 +819,41 @@ export default function BookingsPage() {
       {ToastComponent}
 
       <main className="mx-auto max-w-7xl px-4 py-8 space-y-6">
+        {/* Search Bar */}
+        <div className="rounded-lg bg-white shadow-md p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search by reference, customer name, or phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-4 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="mt-2 text-sm text-gray-500">
+              {filteredBookings.length} booking{filteredBookings.length !== 1 ? 's' : ''} found
+            </p>
+          )}
+        </div>
+
         {/* Today's Bookings Card */}
         <div className="rounded-lg bg-white shadow-md overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Today&apos;s Bookings</h2>
           </div>
           <BulkActionsToolbar tableBookings={todayBookings} />
-          {renderTable(todayBookings, 'No bookings for today', true)}
+          {renderTable(todayBookings, searchQuery ? 'No bookings match your search' : 'No bookings for today', true)}
         </div>
 
         {/* All Bookings Card */}
@@ -782,7 +871,7 @@ export default function BookingsPage() {
             </label>
           </div>
           <BulkActionsToolbar tableBookings={paginatedOtherBookings} />
-          {renderTable(paginatedOtherBookings, 'No bookings found', true)}
+          {renderTable(paginatedOtherBookings, searchQuery ? 'No bookings match your search' : 'No bookings found', true)}
           {hasMoreBookings && (
             <div className="px-6 py-4 border-t border-gray-200 text-center">
               <button
