@@ -68,6 +68,7 @@ export async function GET() {
     const maxDateStr = maxDate.toISOString().split('T')[0];
 
     // Query active bookings (pending and ready) within booking window
+    // Note: Cancelled and complete bookings are excluded from capacity calculations
     const { data: bookings, error: bookingsError } = await supabase
       .from('bookings')
       .select('date, status')

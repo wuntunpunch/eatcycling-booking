@@ -11,7 +11,7 @@ export const SERVICE_LABELS: Record<ServiceType, string> = {
   bosch_diagnostics: 'Bosch Diagnostics',
 };
 
-export type BookingStatus = 'pending' | 'ready' | 'complete';
+export type BookingStatus = 'pending' | 'ready' | 'complete' | 'cancelled';
 
 export interface Customer {
   id: string;
@@ -32,6 +32,7 @@ export interface Booking {
   status: BookingStatus;
   notes: string | null;
   reference_number: string | null;
+  calendar_event_id?: string | null;
   completed_at?: string;
   reminder_sent_at?: string;
   created_at: string;
@@ -55,7 +56,7 @@ export interface MessageLog {
   id: string;
   booking_id?: string;
   customer_id: string;
-  message_type: 'reminder' | 'confirmation' | 'ready';
+  message_type: 'reminder' | 'confirmation' | 'ready' | 'cancellation';
   recipient_phone: string;
   template_name?: string;
   success: boolean;

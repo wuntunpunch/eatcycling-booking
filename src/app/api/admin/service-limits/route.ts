@@ -13,7 +13,8 @@ function getSupabaseClient() {
 
 /**
  * Get active booking count for a specific date
- * Active bookings are those with status 'pending' or 'ready' (exclude 'complete')
+ * Active bookings are those with status 'pending' or 'ready'
+ * Note: Cancelled and complete bookings are excluded from capacity calculations
  */
 async function getActiveBookingCount(supabase: ReturnType<typeof getSupabaseClient>, date: string): Promise<number> {
   const { count, error } = await supabase
@@ -43,6 +44,7 @@ async function getBookingCounts(supabase: ReturnType<typeof getSupabaseClient>):
 
   // Query all active bookings within the booking window
   // Active bookings are those with status 'pending' or 'ready'
+  // Note: Cancelled and complete bookings are excluded from capacity calculations
   const { data: bookings, error } = await supabase
     .from('bookings')
     .select('date')

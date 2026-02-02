@@ -310,6 +310,87 @@ Pop by whenever suits you to pick it up.
   }
 }
 
+export async function sendCancellationNotification({
+  customerName,
+  customerPhone,
+  serviceType,
+  date,
+  referenceNumber,
+}: {
+  customerName: string;
+  customerPhone: string;
+  serviceType: ServiceType;
+  date: string;
+  referenceNumber?: string;
+}) {
+  const formattedDate = new Date(date).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+  const referenceText = referenceNumber ? `🔖 Ref: ${referenceNumber}` : '';
+  
+  // Generate rebooking link (pre-filled with customer name/phone)
+  const rebookingUrl = `${process.env.BOOKING_FORM_URL || 'https://book.eatcycling.co.uk'}?name=${encodeURIComponent(customerName)}&phone=${encodeURIComponent(customerPhone)}`;
+
+  // Check if template is configured
+  const templateName = process.env.WHATSAPP_CANCELLATION_TEMPLATE_NAME;
+  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en';
+
+  if (templateName) {
+    // Use template message (required for outbound messages)
+    // Template should have placeholders: {{1}} name, {{2}} date, {{3}} service, {{4}} reference (optional), {{5}} rebooking link
+    try {
+      const templateParams = referenceNumber
+        ? [customerName, formattedDate, SERVICE_LABELS[serviceType], referenceNumber, rebookingUrl]
+        : [customerName, formattedDate, SERVICE_LABELS[serviceType], rebookingUrl];
+      
+      return await sendWhatsAppTemplateMessage(
+        customerPhone,
+        templateName,
+        templateLanguage,
+        templateParams
+      );
+    } catch (error) {
+      // Fallback to free-form message
+      console.warn('Template message failed, falling back to free-form message:', error);
+      const message = `Hi ${customerName}! 👋
+
+Your booking with EAT Cycling has been cancelled:
+
+📅 ${formattedDate}
+🔧 ${SERVICE_LABELS[serviceType]}
+${referenceText ? `${referenceText}\n` : ''}
+Need to rebook? Use this link:
+${rebookingUrl}
+
+If you have any questions, please get in touch!
+
+- Eddie, EAT Cycling`;
+
+      return sendWhatsAppMessage(customerPhone, message);
+    }
+  } else {
+    // Free-form message (only works within 24-hour window)
+    const message = `Hi ${customerName}! 👋
+
+Your booking with EAT Cycling has been cancelled:
+
+📅 ${formattedDate}
+🔧 ${SERVICE_LABELS[serviceType]}
+${referenceText ? `${referenceText}\n` : ''}
+Need to rebook? Use this link:
+${rebookingUrl}
+
+If you have any questions, please get in touch!
+
+- Eddie, EAT Cycling`;
+
+    return sendWhatsAppMessage(customerPhone, message);
+  }
+}
+
 export async function sendServiceReminder({
   customerName,
   customerPhone,

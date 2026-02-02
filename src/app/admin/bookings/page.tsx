@@ -18,7 +18,12 @@ export default function BookingsPage() {
   const [selectedBookings, setSelectedBookings] = useState<Set<string>>(new Set());
   const [processingBookings, setProcessingBookings] = useState<Set<string>>(new Set());
   const [showComplete, setShowComplete] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
   const [modalBooking, setModalBooking] = useState<BookingWithCustomer | null>(null);
+  const [cancelModalBooking, setCancelModalBooking] = useState<BookingWithCustomer | null>(null);
+  const [cancelWhatsAppChoice, setCancelWhatsAppChoice] = useState<boolean | null>(null);
+  const [bulkCancelBookings, setBulkCancelBookings] = useState<BookingWithCustomer[]>([]);
+  const [bulkCancelWhatsAppChoice, setBulkCancelWhatsAppChoice] = useState<boolean | null>(null);
   const [displayCount, setDisplayCount] = useState(5);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,19 +54,23 @@ export default function BookingsPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openDropdown]);
 
-  // Load filter preference from localStorage
+  // Load filter preferences from localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('bookings_show_complete');
-      if (saved !== null) {
-        setShowComplete(JSON.parse(saved));
+      const savedComplete = localStorage.getItem('bookings_show_complete');
+      if (savedComplete !== null) {
+        setShowComplete(JSON.parse(savedComplete));
+      }
+      const savedCancelled = localStorage.getItem('bookings_show_cancelled');
+      if (savedCancelled !== null) {
+        setShowCancelled(JSON.parse(savedCancelled));
       }
     } catch (error) {
       console.error('Error reading localStorage:', error);
     }
   }, []);
 
-  // Save filter preference to localStorage
+  // Save filter preferences to localStorage
   useEffect(() => {
     try {
       localStorage.setItem('bookings_show_complete', JSON.stringify(showComplete));
@@ -69,6 +78,14 @@ export default function BookingsPage() {
       console.error('Error saving to localStorage:', error);
     }
   }, [showComplete]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bookings_show_cancelled', JSON.stringify(showCancelled));
+    } catch (error) {
+      console.error('Error saving to localStorage:', error);
+    }
+  }, [showCancelled]);
 
   useEffect(() => {
     fetchBookings();
@@ -161,6 +178,150 @@ export default function BookingsPage() {
         next.delete(bookingId);
         return next;
       });
+    }
+  }
+
+  function handleCancelBooking(booking: BookingWithCustomer) {
+    setCancelModalBooking(booking);
+    setCancelWhatsAppChoice(null);
+  }
+
+  function handleCloseCancelModal() {
+    if (!processingBookings.has(cancelModalBooking?.id || '')) {
+      setCancelModalBooking(null);
+      setCancelWhatsAppChoice(null);
+    }
+  }
+
+  async function handleConfirmCancel() {
+    if (!cancelModalBooking) return;
+
+    const bookingId = cancelModalBooking.id;
+    setProcessingBookings((prev) => new Set(prev).add(bookingId));
+    
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skipWhatsApp: cancelWhatsAppChoice === false }),
+      });
+
+      if (response.ok) {
+        showToast(
+          cancelWhatsAppChoice === false
+            ? 'Booking cancelled (no WhatsApp sent)'
+            : 'Booking cancelled. Customer notified via WhatsApp.',
+          'success'
+        );
+        setCancelModalBooking(null);
+        setCancelWhatsAppChoice(null);
+        await fetchBookings();
+      } else {
+        const error = await response.json();
+        showToast(`Failed to cancel booking: ${error.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      showToast('Failed to cancel booking', 'error');
+    } finally {
+      setProcessingBookings((prev) => {
+        const next = new Set(prev);
+        next.delete(bookingId);
+        return next;
+      });
+    }
+  }
+
+  async function handleRestoreBooking(bookingId: string) {
+    setProcessingBookings((prev) => new Set(prev).add(bookingId));
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/restore`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        showToast('Booking restored to pending', 'success');
+        await fetchBookings();
+      } else {
+        const error = await response.json();
+        showToast(`Failed to restore: ${error.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error restoring booking:', error);
+      showToast('Failed to restore booking', 'error');
+    } finally {
+      setProcessingBookings((prev) => {
+        const next = new Set(prev);
+        next.delete(bookingId);
+        return next;
+      });
+    }
+  }
+
+  function handleBulkCancel(bookingsToCancel: BookingWithCustomer[]) {
+    // Only allow cancelling pending bookings
+    const pendingBookings = bookingsToCancel.filter(b => b.status === 'pending');
+    if (pendingBookings.length === 0) {
+      showToast('Only pending bookings can be cancelled', 'error');
+      return;
+    }
+    setBulkCancelBookings(pendingBookings);
+    setBulkCancelWhatsAppChoice(null);
+  }
+
+  function handleCloseBulkCancelModal() {
+    if (processingBookings.size === 0) {
+      setBulkCancelBookings([]);
+      setBulkCancelWhatsAppChoice(null);
+    }
+  }
+
+  async function handleConfirmBulkCancel() {
+    if (bulkCancelBookings.length === 0 || bulkCancelWhatsAppChoice === null) return;
+
+    const bookingIds = bulkCancelBookings.map(b => b.id);
+    setProcessingBookings(new Set(bookingIds));
+
+    try {
+      let succeeded = 0;
+      let failed = 0;
+
+      for (const booking of bulkCancelBookings) {
+        try {
+          const response = await fetch(`/api/bookings/${booking.id}/cancel`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ skipWhatsApp: bulkCancelWhatsAppChoice === false }),
+          });
+
+          if (response.ok) {
+            succeeded++;
+          } else {
+            failed++;
+          }
+        } catch (error) {
+          failed++;
+        }
+      }
+
+      if (succeeded > 0) {
+        showToast(
+          `${succeeded} booking${succeeded > 1 ? 's' : ''} cancelled${bulkCancelWhatsAppChoice === false ? ' (no WhatsApp sent)' : ''}`,
+          'success'
+        );
+      }
+      if (failed > 0) {
+        showToast(`${failed} booking${failed > 1 ? 's' : ''} failed to cancel`, 'error');
+      }
+
+      setBulkCancelBookings([]);
+      setBulkCancelWhatsAppChoice(null);
+      await fetchBookings();
+    } catch (error) {
+      console.error('Error in bulk cancellation:', error);
+      showToast('Failed to cancel bookings', 'error');
+    } finally {
+      setProcessingBookings(new Set());
     }
   }
 
@@ -281,12 +442,14 @@ export default function BookingsPage() {
     pending: 'bg-yellow-100 text-yellow-800',
     ready: 'bg-green-100 text-green-800',
     complete: 'bg-gray-100 text-gray-800',
+    cancelled: 'bg-red-100 text-red-800',
   };
 
   const statusOrder: Record<string, number> = {
     pending: 0,
     ready: 1,
     complete: 2,
+    cancelled: 3,
   };
 
   function isToday(bookingDate: string): boolean {
@@ -356,14 +519,25 @@ export default function BookingsPage() {
   }, [filteredBookings, sortColumn, sortDirection]);
 
   const filteredOtherBookings = useMemo(() => {
-    return showComplete
-      ? otherBookings
-      : otherBookings.filter((b) => b.status !== 'complete');
-  }, [otherBookings, showComplete]);
+    let filtered = otherBookings;
+    
+    // Filter out complete if not showing complete
+    if (!showComplete) {
+      filtered = filtered.filter((b) => b.status !== 'complete');
+    }
+    
+    // Filter out cancelled if not showing cancelled
+    // Note: Cancelled bookings still appear in search results
+    if (!showCancelled) {
+      filtered = filtered.filter((b) => b.status !== 'cancelled');
+    }
+    
+    return filtered;
+  }, [otherBookings, showComplete, showCancelled]);
 
   useEffect(() => {
     setDisplayCount(5);
-  }, [showComplete]);
+  }, [showComplete, showCancelled]);
 
   const paginatedOtherBookings = useMemo(() => {
     return filteredOtherBookings.slice(0, displayCount);
@@ -449,6 +623,55 @@ export default function BookingsPage() {
 
     if (booking.status === 'complete') {
       return <span className="text-gray-400">Complete</span>;
+    }
+
+    if (booking.status === 'cancelled') {
+      return (
+        <div className="relative flex items-center gap-1">
+          <span className="text-gray-400">Cancelled</span>
+          <button
+            onClick={() => setOpenDropdown(isOpen ? null : booking.id)}
+            disabled={isProcessing}
+            className="text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed p-1"
+            aria-label="More options"
+          >
+            <svg
+              className={`w-4 h-4 transition-transform ${isOpen ? (dropdownPosition?.positionAbove ? 'rotate-0' : 'rotate-180') : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {isOpen && dropdownPosition && typeof window !== 'undefined' && createPortal(
+            <div 
+              ref={(el) => {
+                dropdownMenuRefs.current[booking.id] = el;
+              }}
+              className="fixed w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+              style={{
+                top: `${dropdownPosition.top}px`,
+                left: `${dropdownPosition.left}px`,
+              }}
+            >
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    handleRestoreBooking(booking.id);
+                    setOpenDropdown(null);
+                  }}
+                  disabled={isProcessing}
+                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Restore Booking
+                </button>
+              </div>
+            </div>,
+            document.body
+          )}
+        </div>
+      );
     }
 
     const getPrimaryAction = () => {
@@ -548,6 +771,16 @@ export default function BookingsPage() {
                   >
                     Skip to Complete
                   </button>
+                  <button
+                    onClick={() => {
+                      handleCancelBooking(booking);
+                      setOpenDropdown(null);
+                    }}
+                    disabled={isProcessing}
+                    className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Cancel Booking
+                  </button>
                 </>
               )}
               {booking.status === 'ready' && (
@@ -606,6 +839,13 @@ export default function BookingsPage() {
       handleClearTableSelection();
     };
 
+    // Handler for bulk cancellation
+    const handleTableBulkCancel = () => {
+      const selectedBookingsToCancel = tableBookings.filter((b) => tableSelectedIds.has(b.id));
+      handleBulkCancel(selectedBookingsToCancel);
+      handleClearTableSelection();
+    };
+
     return (
       <div className="px-6 py-3 bg-blue-50 border-b border-blue-200 flex items-center justify-between">
         <span className="text-sm font-medium text-blue-900">
@@ -634,6 +874,13 @@ export default function BookingsPage() {
                 className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 disabled:opacity-50"
               >
                 Skip to Complete
+              </button>
+              <button
+                onClick={handleTableBulkCancel}
+                disabled={isProcessing}
+                className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+              >
+                Cancel Selected
               </button>
             </>
           )}
@@ -860,15 +1107,26 @@ export default function BookingsPage() {
         <div className="rounded-lg bg-white shadow-md overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">All Bookings</h2>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={showComplete}
-                onChange={(e) => setShowComplete(e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span>Show complete bookings</span>
-            </label>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showComplete}
+                  onChange={(e) => setShowComplete(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Show complete bookings</span>
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showCancelled}
+                  onChange={(e) => setShowCancelled(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span>Show cancelled bookings</span>
+              </label>
+            </div>
           </div>
           <BulkActionsToolbar tableBookings={paginatedOtherBookings} />
           {renderTable(paginatedOtherBookings, searchQuery ? 'No bookings match your search' : 'No bookings found', true)}
@@ -894,6 +1152,205 @@ export default function BookingsPage() {
           onConfirm={handleConfirmComplete}
           isLoading={processingBookings.has(modalBooking.id)}
         />
+      )}
+
+      {/* Cancellation Confirmation Modal */}
+      {cancelModalBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-labelledby="cancel-modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={handleCloseCancelModal}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <h3
+                id="cancel-modal-title"
+                className="text-lg font-semibold text-gray-900 mb-4"
+              >
+                Cancel this booking?
+              </h3>
+
+              <div className="space-y-3 mb-6">
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Customer:</span>
+                  <span className="ml-2 text-sm text-gray-900">{cancelModalBooking.customer.name}</span>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Service:</span>
+                  <span className="ml-2 text-sm text-gray-900">
+                    {SERVICE_LABELS[cancelModalBooking.service_type]}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Date:</span>
+                  <span className="ml-2 text-sm text-gray-900">
+                    {new Date(cancelModalBooking.date).toLocaleDateString('en-GB', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                    })}
+                  </span>
+                </div>
+                {cancelModalBooking.reference_number && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Reference:</span>
+                    <span className="ml-2 text-sm text-gray-900 font-mono">
+                      {cancelModalBooking.reference_number}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Send cancellation notification via WhatsApp?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setCancelWhatsAppChoice(true)}
+                    className={`flex-1 px-4 py-2 text-sm font-medium rounded-md border ${
+                      cancelWhatsAppChoice === true
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Yes, Send WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCancelWhatsAppChoice(false)}
+                    className={`flex-1 px-4 py-2 text-sm font-medium rounded-md border ${
+                      cancelWhatsAppChoice === false
+                        ? 'bg-gray-600 text-white border-gray-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    No WhatsApp
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseCancelModal}
+                  disabled={processingBookings.has(cancelModalBooking.id)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmCancel}
+                  disabled={processingBookings.has(cancelModalBooking.id) || cancelWhatsAppChoice === null}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processingBookings.has(cancelModalBooking.id) ? 'Cancelling...' : 'Confirm Cancellation'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Cancellation Confirmation Modal */}
+      {bulkCancelBookings.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-labelledby="bulk-cancel-modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={handleCloseBulkCancelModal}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <h3
+                id="bulk-cancel-modal-title"
+                className="text-lg font-semibold text-gray-900 mb-4"
+              >
+                Cancel {bulkCancelBookings.length} booking{bulkCancelBookings.length > 1 ? 's' : ''}?
+              </h3>
+
+              <div className="mb-4 max-h-60 overflow-y-auto">
+                <ul className="space-y-2">
+                  {bulkCancelBookings.map((booking) => (
+                    <li key={booking.id} className="text-sm text-gray-700">
+                      <span className="font-medium">{booking.customer.name}</span>
+                      {' - '}
+                      {SERVICE_LABELS[booking.service_type]}
+                      {' - '}
+                      {new Date(booking.date).toLocaleDateString('en-GB')}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <p className="text-sm font-medium text-gray-700 mb-3">
+                  Send cancellation notifications via WhatsApp?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBulkCancelWhatsAppChoice(true)}
+                    className={`flex-1 px-4 py-2 text-sm font-medium rounded-md border ${
+                      bulkCancelWhatsAppChoice === true
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    Yes, Send WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkCancelWhatsAppChoice(false)}
+                    className={`flex-1 px-4 py-2 text-sm font-medium rounded-md border ${
+                      bulkCancelWhatsAppChoice === false
+                        ? 'bg-gray-600 text-white border-gray-600'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    No WhatsApp
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseBulkCancelModal}
+                  disabled={processingBookings.size > 0}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBulkCancel}
+                  disabled={processingBookings.size > 0 || bulkCancelWhatsAppChoice === null}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processingBookings.size > 0 ? 'Cancelling...' : 'Confirm Cancellation'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -54,3 +54,18 @@ ${bikeDetails}`,
 
   return response.data;
 }
+
+export async function deleteCalendarEvent(eventId: string) {
+  const calendar = getCalendarClient();
+  
+  try {
+    await calendar.events.delete({
+      calendarId: CALENDAR_ID,
+      eventId: eventId,
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting calendar event:', error);
+    throw error;
+  }
+}
