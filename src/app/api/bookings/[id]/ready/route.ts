@@ -39,10 +39,16 @@ export async function POST(
       );
     }
 
-    // Update booking status to ready
+    // Update booking status to ready, set ready_at timestamp, and clear collection_reminder_sent_at
+    // Always reset ready_at to NOW() when marking ready (even if previously set)
+    // Clear collection_reminder_sent_at for fresh start
     const { error: updateError } = await supabase
       .from('bookings')
-      .update({ status: 'ready' })
+      .update({ 
+        status: 'ready',
+        ready_at: new Date().toISOString(),
+        collection_reminder_sent_at: null
+      })
       .eq('id', id);
 
     if (updateError) {

@@ -57,12 +57,14 @@ export async function POST(
       );
     }
 
-    // Update booking status to complete and set completed_at
+    // Update booking status to complete, set completed_at, and clear collection_reminder_sent_at
+    // (no longer awaiting collection)
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ 
         status: 'complete',
-        completed_at: new Date().toISOString()
+        completed_at: new Date().toISOString(),
+        collection_reminder_sent_at: null
       })
       .eq('id', id);
 

@@ -456,3 +456,102 @@ ${optOutUrl}
     return sendWhatsAppMessage(customerPhone, message);
   }
 }
+
+function formatRelativeDate(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 1) {
+    return 'today';
+  } else if (diffDays === 1) {
+    return '1 day ago';
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else if (diffDays < 14) {
+    const weeks = Math.floor(diffDays / 7);
+    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+  } else if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return `${weeks} weeks ago`;
+  } else {
+    const months = Math.floor(diffDays / 30);
+    return months === 1 ? '1 month ago' : `${months} months ago`;
+  }
+}
+
+export async function sendCollectionReminder({
+  customerName,
+  customerPhone,
+  readyDate,
+  serviceType,
+  referenceNumber,
+}: {
+  customerName: string;
+  customerPhone: string;
+  readyDate: string; // ISO date string
+  serviceType: ServiceType;
+  referenceNumber?: string;
+}) {
+  const relativeDate = formatRelativeDate(readyDate);
+  const absoluteDate = new Date(readyDate).toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const serviceLabel = SERVICE_LABELS[serviceType];
+  const referenceText = referenceNumber ? `\n🔖 Ref: ${referenceNumber}` : '';
+  
+  // Combine date: relative date (absolute date)
+  const combinedDate = `${relativeDate} (${absoluteDate})`;
+  
+  // Combine service and reference into one parameter
+  const serviceAndReference = referenceNumber 
+    ? `🔧 ${serviceLabel}\n🔖 Ref: ${referenceNumber}`
+    : `🔧 ${serviceLabel}`;
+
+  // Check if template is configured
+  const templateName = process.env.WHATSAPP_COLLECTION_TEMPLATE_NAME;
+  const templateLanguage = process.env.WHATSAPP_TEMPLATE_LANGUAGE || 'en';
+
+  if (templateName) {
+    // Use template message (required for outbound messages)
+    // Template should have placeholders: {{1}} name, {{2}} combined date, {{3}} service and reference
+    try {
+      const templateParams = [customerName, combinedDate, serviceAndReference];
+      
+      return await sendWhatsAppTemplateMessage(
+        customerPhone,
+        templateName,
+        templateLanguage,
+        templateParams
+      );
+    } catch (error) {
+      // Fallback to free-form message
+      console.warn('Template message failed, falling back to free-form message:', error);
+      const message = `Hi ${customerName}! 🚴
+
+Your bike has been ready for collection since ${relativeDate} (${absoluteDate}). Please collect at your earliest convenience from EAT Cycling.
+
+🔧 ${serviceLabel}${referenceText}
+
+- Eddie, EAT Cycling`;
+
+      return sendWhatsAppMessage(customerPhone, message);
+    }
+  } else {
+    // Free-form message (only works within 24-hour window)
+    const message = `Hi ${customerName}! 🚴
+
+Your bike has been ready for collection since ${relativeDate} (${absoluteDate}). Please collect at your earliest convenience from EAT Cycling.
+
+🔧 ${serviceLabel}${referenceText}
+
+- Eddie, EAT Cycling`;
+
+    return sendWhatsAppMessage(customerPhone, message);
+  }
+}
