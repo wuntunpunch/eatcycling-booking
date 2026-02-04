@@ -24,6 +24,7 @@ export default function BookingsPage() {
   const [cancelWhatsAppChoice, setCancelWhatsAppChoice] = useState<boolean | null>(null);
   const [bulkCancelBookings, setBulkCancelBookings] = useState<BookingWithCustomer[]>([]);
   const [bulkCancelWhatsAppChoice, setBulkCancelWhatsAppChoice] = useState<boolean | null>(null);
+  const [bulkReminderBookings, setBulkReminderBookings] = useState<BookingWithCustomer[]>([]);
   const [displayCount, setDisplayCount] = useState(5);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -255,6 +256,112 @@ export default function BookingsPage() {
         next.delete(bookingId);
         return next;
       });
+    }
+  }
+
+  function isEligibleForCollectionReminder(booking: BookingWithCustomer): boolean {
+    if (booking.status !== 'ready') return false;
+    if (!booking.ready_at) return false;
+    
+    const readyDate = new Date(booking.ready_at);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - readyDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return diffDays >= 3;
+  }
+
+  function getDaysWaiting(booking: BookingWithCustomer): number | null {
+    if (!booking.ready_at) return null;
+    const readyDate = new Date(booking.ready_at);
+    const now = new Date();
+    return Math.floor((now.getTime() - readyDate.getTime()) / (1000 * 60 * 60 * 24));
+  }
+
+  async function handleSendCollectionReminder(bookingId: string) {
+    setProcessingBookings((prev) => new Set(prev).add(bookingId));
+    try {
+      const response = await fetch(`/api/bookings/${bookingId}/remind-collection`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        showToast('Collection reminder sent successfully', 'success');
+        await fetchBookings();
+      } else {
+        const error = await response.json();
+        showToast(`Failed to send reminder: ${error.message}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error sending collection reminder:', error);
+      showToast('Failed to send collection reminder', 'error');
+    } finally {
+      setProcessingBookings((prev) => {
+        const next = new Set(prev);
+        next.delete(bookingId);
+        return next;
+      });
+    }
+  }
+
+  function handleBulkReminder(bookingsToRemind: BookingWithCustomer[]) {
+    // Only allow reminders for eligible bookings
+    const eligibleBookings = bookingsToRemind.filter(b => isEligibleForCollectionReminder(b));
+    if (eligibleBookings.length === 0) {
+      showToast('No eligible bookings selected for collection reminders', 'error');
+      return;
+    }
+    setBulkReminderBookings(eligibleBookings);
+  }
+
+  function handleCloseBulkReminderModal() {
+    if (processingBookings.size === 0) {
+      setBulkReminderBookings([]);
+    }
+  }
+
+  async function handleConfirmBulkReminder() {
+    if (bulkReminderBookings.length === 0) return;
+
+    const bookingIds = bulkReminderBookings.map(b => b.id);
+    setProcessingBookings(new Set(bookingIds));
+
+    try {
+      let succeeded = 0;
+      let failed = 0;
+
+      for (const booking of bulkReminderBookings) {
+        try {
+          const response = await fetch(`/api/bookings/${booking.id}/remind-collection`, {
+            method: 'POST',
+          });
+
+          if (response.ok) {
+            succeeded++;
+          } else {
+            failed++;
+          }
+        } catch (error) {
+          failed++;
+        }
+      }
+
+      if (succeeded > 0) {
+        showToast(
+          `${succeeded} reminder${succeeded > 1 ? 's' : ''} sent successfully`,
+          'success'
+        );
+      }
+      if (failed > 0) {
+        showToast(`${failed} reminder${failed > 1 ? 's' : ''} failed to send`, 'error');
+      }
+
+      setBulkReminderBookings([]);
+      await fetchBookings();
+    } catch (error) {
+      console.error('Error in bulk reminder:', error);
+      showToast('Failed to send reminders', 'error');
+    } finally {
+      setProcessingBookings(new Set());
     }
   }
 
@@ -784,16 +891,30 @@ export default function BookingsPage() {
                 </>
               )}
               {booking.status === 'ready' && (
-                <button
-                  onClick={() => {
-                    handleReadyForCollection(booking);
-                    setOpenDropdown(null);
-                  }}
-                  disabled={isProcessing}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  Complete
-                </button>
+                <>
+                  {isEligibleForCollectionReminder(booking) && (
+                    <button
+                      onClick={() => {
+                        handleSendCollectionReminder(booking.id);
+                        setOpenDropdown(null);
+                      }}
+                      disabled={isProcessing}
+                      className="block w-full text-left px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 disabled:opacity-50"
+                    >
+                      Send Collection Reminder
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      handleReadyForCollection(booking);
+                      setOpenDropdown(null);
+                    }}
+                    disabled={isProcessing}
+                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                  >
+                    Complete
+                  </button>
+                </>
               )}
             </div>
           </div>,
@@ -818,6 +939,8 @@ export default function BookingsPage() {
     const tableSelectedStatuses = new Set(tableSelectedBookings.map((b) => b.status));
     const hasPending = tableSelectedStatuses.has('pending');
     const hasReady = tableSelectedStatuses.has('ready');
+    const eligibleForReminder = tableSelectedBookings.filter(b => isEligibleForCollectionReminder(b));
+    const hasEligibleReminders = eligibleForReminder.length > 0;
     const isProcessing = processingBookings.size > 0;
 
     // Handler that only clears selections for this table
@@ -885,13 +1008,27 @@ export default function BookingsPage() {
             </>
           )}
           {hasReady && (
-            <button
-              onClick={() => handleTableBulkAction('markComplete')}
-              disabled={isProcessing}
-              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-            >
-              Mark Complete
-            </button>
+            <>
+              {hasEligibleReminders && (
+                <button
+                  onClick={() => {
+                    handleBulkReminder(eligibleForReminder);
+                    handleClearTableSelection();
+                  }}
+                  disabled={isProcessing}
+                  className="px-3 py-1 text-sm bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+                >
+                  Send Collection Reminders ({eligibleForReminder.length})
+                </button>
+              )}
+              <button
+                onClick={() => handleTableBulkAction('markComplete')}
+                disabled={isProcessing}
+                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+              >
+                Mark Complete
+              </button>
+            </>
           )}
           <button
             onClick={handleClearTableSelection}
@@ -1346,6 +1483,75 @@ export default function BookingsPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processingBookings.size > 0 ? 'Cancelling...' : 'Confirm Cancellation'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Reminder Confirmation Modal */}
+      {bulkReminderBookings.length > 0 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-labelledby="bulk-reminder-modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={handleCloseBulkReminderModal}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <h3
+                id="bulk-reminder-modal-title"
+                className="text-lg font-semibold text-gray-900 mb-4"
+              >
+                Send collection reminders to {bulkReminderBookings.length} booking{bulkReminderBookings.length > 1 ? 's' : ''}?
+              </h3>
+
+              <div className="mb-4 max-h-60 overflow-y-auto">
+                <ul className="space-y-2">
+                  {bulkReminderBookings.map((booking) => {
+                    const daysWaiting = getDaysWaiting(booking);
+                    return (
+                      <li key={booking.id} className="text-sm text-gray-700">
+                        <span className="font-medium">{booking.customer.name}</span>
+                        {' - '}
+                        {SERVICE_LABELS[booking.service_type]}
+                        {' - '}
+                        {new Date(booking.date).toLocaleDateString('en-GB')}
+                        {daysWaiting !== null && (
+                          <span className="ml-2 text-orange-600">
+                            (Ready {daysWaiting} day{daysWaiting !== 1 ? 's' : ''} ago)
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={handleCloseBulkReminderModal}
+                  disabled={processingBookings.size > 0}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmBulkReminder}
+                  disabled={processingBookings.size > 0}
+                  className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processingBookings.size > 0 ? 'Sending...' : 'Send Reminders'}
                 </button>
               </div>
             </div>

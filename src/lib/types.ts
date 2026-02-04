@@ -35,6 +35,8 @@ export interface Booking {
   calendar_event_id?: string | null;
   completed_at?: string;
   reminder_sent_at?: string;
+  ready_at?: string;
+  collection_reminder_sent_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -56,7 +58,7 @@ export interface MessageLog {
   id: string;
   booking_id?: string;
   customer_id: string;
-  message_type: 'reminder' | 'confirmation' | 'ready' | 'cancellation';
+  message_type: 'reminder' | 'confirmation' | 'ready' | 'cancellation' | 'collection_reminder';
   recipient_phone: string;
   template_name?: string;
   success: boolean;

@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS message_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   booking_id UUID REFERENCES bookings(id) ON DELETE SET NULL,
   customer_id UUID REFERENCES customers(id) ON DELETE CASCADE,
-  message_type TEXT NOT NULL, -- 'reminder', 'confirmation', 'ready'
+  message_type TEXT NOT NULL, -- 'reminder', 'confirmation', 'ready', 'cancellation', 'collection_reminder'
   recipient_phone TEXT NOT NULL,
   template_name TEXT,
   success BOOLEAN NOT NULL,
