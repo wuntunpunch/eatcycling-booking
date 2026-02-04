@@ -505,13 +505,14 @@ export async function sendCollectionReminder({
   const serviceLabel = SERVICE_LABELS[serviceType];
   const referenceText = referenceNumber ? `\n🔖 Ref: ${referenceNumber}` : '';
   
-  // Combine date: relative date (absolute date)
-  const combinedDate = `${relativeDate} (${absoluteDate})`;
+  // Format date: "for [relative date] ([absolute date])" 
+  // e.g., "for 3 days (Monday, 3rd February 2025)"
+  const combinedDate = `for ${relativeDate} (${absoluteDate})`;
   
-  // Combine service and reference into one parameter
-  const serviceAndReference = referenceNumber 
-    ? `🔧 ${serviceLabel}\n🔖 Ref: ${referenceNumber}`
-    : `🔧 ${serviceLabel}`;
+  // Reference only (service type removed)
+  const referenceOnly = referenceNumber 
+    ? `🔖 Ref: ${referenceNumber}`
+    : '';
 
   // Check if template is configured
   const templateName = process.env.WHATSAPP_COLLECTION_TEMPLATE_NAME;
@@ -519,9 +520,9 @@ export async function sendCollectionReminder({
 
   if (templateName) {
     // Use template message (required for outbound messages)
-    // Template should have placeholders: {{1}} name, {{2}} combined date, {{3}} service and reference
+    // Template should have placeholders: {{1}} name, {{2}} combined date, {{3}} reference (optional)
     try {
-      const templateParams = [customerName, combinedDate, serviceAndReference];
+      const templateParams = [customerName, combinedDate, referenceOnly];
       
       return await sendWhatsAppTemplateMessage(
         customerPhone,
@@ -534,10 +535,8 @@ export async function sendCollectionReminder({
       console.warn('Template message failed, falling back to free-form message:', error);
       const message = `Hi ${customerName}! 🚴
 
-Your bike has been ready for collection since ${relativeDate} (${absoluteDate}). Please collect at your earliest convenience from EAT Cycling.
-
-🔧 ${serviceLabel}${referenceText}
-
+Your bike has been ready for collection for ${relativeDate} (${absoluteDate}). Please collect at your earliest convenience from EAT Cycling.
+${referenceText ? `${referenceText}\n` : ''}
 - Eddie, EAT Cycling`;
 
       return sendWhatsAppMessage(customerPhone, message);
@@ -546,10 +545,8 @@ Your bike has been ready for collection since ${relativeDate} (${absoluteDate}).
     // Free-form message (only works within 24-hour window)
     const message = `Hi ${customerName}! 🚴
 
-Your bike has been ready for collection since ${relativeDate} (${absoluteDate}). Please collect at your earliest convenience from EAT Cycling.
-
-🔧 ${serviceLabel}${referenceText}
-
+Your bike has been ready for collection for ${relativeDate} (${absoluteDate}). Please collect at your earliest convenience from EAT Cycling.
+${referenceText ? `${referenceText}\n` : ''}
 - Eddie, EAT Cycling`;
 
     return sendWhatsAppMessage(customerPhone, message);
