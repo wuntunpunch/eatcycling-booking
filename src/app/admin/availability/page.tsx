@@ -396,7 +396,7 @@ export default function AvailabilityPage() {
                 </label>
                 <DatePicker
                   selected={startDate}
-                  onChange={(date) => setStartDate(date)}
+                  onChange={(date: Date | null) => setStartDate(date)}
                   minDate={today}
                   maxDate={maxDate}
                   dateFormat="yyyy-MM-dd"
@@ -412,7 +412,7 @@ export default function AvailabilityPage() {
                   </label>
                   <DatePicker
                     selected={endDate}
-                    onChange={(date) => setEndDate(date)}
+                    onChange={(date: Date | null) => setEndDate(date)}
                     minDate={startDate || today}
                     maxDate={maxDate}
                     dateFormat="yyyy-MM-dd"
