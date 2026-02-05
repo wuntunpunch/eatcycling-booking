@@ -200,8 +200,8 @@ export default function LoginPage() {
         if (!errorMessage && data?.error) {
           if (typeof data.error === 'string') {
             errorMessage = data.error;
-          } else if (typeof data.error === 'object' && data.error?.message) {
-            errorMessage = data.error.message;
+          } else if (typeof data.error === 'object' && data.error !== null && 'message' in data.error) {
+            errorMessage = (data.error as { message: string }).message;
           }
         }
         
