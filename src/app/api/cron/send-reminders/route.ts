@@ -106,9 +106,13 @@ export async function GET(request: NextRequest) {
 
     // Filter to get only most recent completed booking per customer
     // Also filter out customers who have opted out
-    const customerMap = new Map<string, BookingWithCustomer>();
+    const customerMap = new Map<string, typeof bookings[0]>();
     for (const booking of bookings) {
-      const customer = booking.customer as Customer;
+      // Handle customer as array or single object (Supabase can return either)
+      const customerData = Array.isArray(booking.customer) 
+        ? booking.customer[0] 
+        : booking.customer;
+      const customer = customerData as Customer;
       // Skip if customer has opted out
       if (customer?.opt_out_reminders === true) {
         continue;
@@ -132,7 +136,11 @@ export async function GET(request: NextRequest) {
     }>();
 
     for (const booking of bookingsToProcess) {
-      const customer = booking.customer as Customer;
+      // Handle customer as array or single object (Supabase can return either)
+      const customerData = Array.isArray(booking.customer) 
+        ? booking.customer[0] 
+        : booking.customer;
+      const customer = customerData as Customer;
       const key = `${customer.id}_${new Date(booking.completed_at).toDateString()}`;
       
       if (!groupedBookings.has(key)) {
@@ -214,7 +222,11 @@ export async function GET(request: NextRequest) {
             template_name: process.env.WHATSAPP_REMINDER_TEMPLATE_NAME,
             success: false,
             error_message: errorMessage,
-            api_response: error instanceof Error ? { message: error.message } : error,
+            api_response: error instanceof Error 
+              ? { message: error.message } 
+              : (typeof error === 'object' && error !== null 
+                  ? error as Record<string, unknown> 
+                  : undefined),
           });
         }
 

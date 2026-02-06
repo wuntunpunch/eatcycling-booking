@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useToast } from '@/components/toast';
 import { setAuthCache, isAuthCacheValid } from '@/lib/auth-cache';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginMethod, setLoginMethod] = useState<'magic' | 'password'>('magic');
@@ -195,13 +195,13 @@ export default function LoginPage() {
 
       if (!response.ok) {
         // Extract error message with proper fallback chain
-        let errorMessage = data?.message;
+        let errorMessage: string | undefined = typeof data?.message === 'string' ? data.message : undefined;
         
         if (!errorMessage && data?.error) {
           if (typeof data.error === 'string') {
             errorMessage = data.error;
-          } else if (typeof data.error === 'object' && data.error?.message) {
-            errorMessage = data.error.message;
+          } else if (typeof data.error === 'object' && data.error !== null && 'message' in data.error) {
+            errorMessage = (data.error as { message: string }).message;
           }
         }
         
@@ -622,5 +622,33 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="flex justify-center mb-8">
+              <Image
+                src="/images/EAT.svg"
+                alt="EAT Cycling"
+                width={120}
+                height={60}
+                className="h-auto"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
+              Admin Login
+            </h1>
+            <p className="text-gray-600 text-center">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }
