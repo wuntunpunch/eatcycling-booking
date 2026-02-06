@@ -277,7 +277,7 @@ export default function RemindersPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {sentReminders.map((reminder: Reminder, idx: number) => (
+                        {sentReminders.map((reminder: Reminder & { service_type?: ServiceType; completed_at?: string; reminder_sent_at?: string }, idx: number) => (
                           <tr key={idx}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
@@ -288,10 +288,12 @@ export default function RemindersPage() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {SERVICE_LABELS[reminder.service_type]}
+                              {reminder.service_type 
+                                ? SERVICE_LABELS[reminder.service_type]
+                                : formatServices(reminder.serviceTypes)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatDate(reminder.completed_at)}
+                              {formatDate(reminder.completed_at || reminder.completedAt)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {reminder.reminder_sent_at ? formatDate(reminder.reminder_sent_at) : '-'}
@@ -336,7 +338,7 @@ export default function RemindersPage() {
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {failedReminders.map((reminder: Reminder, idx: number) => (
+                        {failedReminders.map((reminder: Reminder & { recipient_phone?: string; created_at?: string }, idx: number) => (
                           <tr key={idx}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="text-sm font-medium text-gray-900">
@@ -355,7 +357,7 @@ export default function RemindersPage() {
                               {reminder.failureCount || 1}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {formatDate(reminder.created_at)}
+                              {reminder.created_at ? formatDate(reminder.created_at) : '-'}
                             </td>
                           </tr>
                         ))}

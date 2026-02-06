@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import { useToast } from '@/components/toast';
 
-export default function ResetPasswordPage() {
+function ResetPasswordPageContent() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -191,5 +191,33 @@ export default function ResetPasswordPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="flex justify-center mb-8">
+              <Image
+                src="/images/EAT.svg"
+                alt="EAT Cycling"
+                width={120}
+                height={60}
+                className="h-auto"
+              />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
+              Reset Password
+            </h1>
+            <p className="text-gray-600 text-center">Loading...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <ResetPasswordPageContent />
+    </Suspense>
   );
 }

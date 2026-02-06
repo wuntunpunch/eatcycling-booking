@@ -98,7 +98,11 @@ export async function POST(request: NextRequest) {
     }>();
 
     for (const booking of bookings) {
-      const customer = booking.customer as Customer;
+      // Handle customer as array or single object (Supabase can return either)
+      const customerData = Array.isArray(booking.customer) 
+        ? booking.customer[0] 
+        : booking.customer;
+      const customer = customerData as Customer;
       // Skip if customer has opted out
       if (customer?.opt_out_reminders === true) {
         continue;

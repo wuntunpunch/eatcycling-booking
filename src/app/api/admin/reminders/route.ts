@@ -70,7 +70,11 @@ export async function GET(request: NextRequest) {
       // Filter out customers who have opted out
       const grouped = new Map();
       for (const booking of data || []) {
-        const customer = booking.customer as Customer;
+        // Handle customer as array or single object (Supabase can return either)
+        const customerData = Array.isArray(booking.customer) 
+          ? booking.customer[0] 
+          : booking.customer;
+        const customer = customerData as Customer;
         // Skip if customer has opted out
         if (customer?.opt_out_reminders === true) {
           continue;
