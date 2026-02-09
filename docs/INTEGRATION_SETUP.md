@@ -14,6 +14,14 @@ This guide will walk you through setting up Google Calendar and WhatsApp integra
 
 ## Google Calendar Setup
 
+**Important:** You must use **your own Google account** (Customer's account) for this setup. The bookings will appear in **your calendar**, so you need to:
+
+- Create the Google Cloud project with your Google account
+- Share your calendar with the service account
+- Use your calendar ID (e.g., `your-email@gmail.com`)
+
+**Do NOT use customer accounts** - this is for your business calendar only.
+
 ### Step 1: Create a Google Cloud Project
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
@@ -52,8 +60,10 @@ This guide will walk you through setting up Google Calendar and WhatsApp integra
 
 ### Step 5: Share Your Calendar with the Service Account
 
-1. Open [Google Calendar](https://calendar.google.com/)
-2. On the left sidebar, find **"My calendars"** and hover over your calendar
+**This is YOUR calendar** (Customer's calendar) where bookings will appear. You're giving the service account permission to add events to it.
+
+1. Open [Google Calendar](https://calendar.google.com/) **with your Google account**
+2. On the left sidebar, find **"My calendars"** and hover over **your calendar** (the one where you want bookings to appear)
 3. Click the three dots (⋮) next to your calendar name
 4. Select **"Settings and sharing"**
 5. Scroll down to **"Share with specific people"**
@@ -64,18 +74,21 @@ This guide will walk you through setting up Google Calendar and WhatsApp integra
 
 ### Step 6: Get Your Calendar ID
 
-1. Still in Google Calendar settings
+**This is YOUR calendar ID** (Customer's calendar) where bookings will appear.
+
+1. Still in Google Calendar settings (for your calendar)
 2. Scroll down to **"Integrate calendar"**
 3. Find **"Calendar ID"** - it will look like:
    - `your-email@gmail.com` (for your personal calendar), OR
    - `something@group.calendar.google.com` (for a shared calendar)
-4. **Copy this Calendar ID** - you'll need it later
+4. **Copy this Calendar ID** - this is what your developer will use to add bookings to your calendar
 
 ### Step 7: Prepare the Service Account Key
 
 The JSON file you downloaded needs to be converted to a special format. You have two options:
 
 **Option A: Using a Website (Easiest)**
+
 1. Go to [Base64 Encode](https://www.base64encode.org/)
 2. Open the JSON file you downloaded in a text editor
 3. Copy the entire contents of the file
@@ -84,12 +97,14 @@ The JSON file you downloaded needs to be converted to a special format. You have
 6. Copy the encoded text (it will be a very long string)
 
 **Option B: Using Command Line (Mac/Linux)**
+
 1. Open Terminal
 2. Navigate to where you saved the JSON file
 3. Run: `cat your-service-account-file.json | base64`
 4. Copy the output (it will be a very long string)
 
 **What you now have:**
+
 - ✅ **Calendar ID**: Your calendar ID (e.g., `your-email@gmail.com`)
 - ✅ **Service Account Key**: The base64-encoded string from the JSON file
 
@@ -120,6 +135,7 @@ The JSON file you downloaded needs to be converted to a special format. You have
 5. **Copy this Phone Number ID** - you'll need it later
 
 **Alternative way to find Phone Number ID:**
+
 1. Go to [Meta for Developers](https://developers.facebook.com/)
 2. Select your app (or create one if needed)
 3. Go to **"WhatsApp"** → **"API Setup"**
@@ -133,6 +149,7 @@ The JSON file you downloaded needs to be converted to a special format. You have
 4. **Copy this token** - it's a very long string starting with something like `EAAM...`
 
 **Important Notes:**
+
 - Temporary tokens expire after a certain time
 - For production use, you'll need a permanent token (System User token)
 - Your developer can help set up a permanent token if needed
@@ -151,6 +168,7 @@ For production use, you'll want a permanent token:
 8. **Copy this token** - this is your permanent access token
 
 **What you now have:**
+
 - ✅ **Phone Number ID**: Your WhatsApp phone number ID (long number)
 - ✅ **Access Token**: Your WhatsApp API access token (long string)
 
@@ -168,6 +186,7 @@ GOOGLE_SERVICE_ACCOUNT_KEY=your-base64-encoded-service-account-key
 ```
 
 **Example:**
+
 ```
 GOOGLE_CALENDAR_ID=eatcycling@gmail.com
 GOOGLE_SERVICE_ACCOUNT_KEY=eyJ0eXBlIjoic2VydmljZV9hY2NvdW50IiwicHJvamVjdF9pZCI6...
@@ -181,6 +200,7 @@ WHATSAPP_API_TOKEN=your-access-token
 ```
 
 **Example:**
+
 ```
 WHATSAPP_PHONE_NUMBER_ID=123456789012345
 WHATSAPP_API_TOKEN=EAAMaHPpdxEUBQnFupayR4V9l2b7uXZBZAw3R5azM5qn1NUjbK9JT7FQjiFFiGHhJYDB5WwD1exCgjQAEbnv2nEWSZB8ZAWWf66D0hGYbODJp9ZAdI9ZAFjbgndWyygtQoP8VP24PEagQxXn1oXX56Pqh4Vhlt4TzwuGeTfl5Syq3387YZCNlRjHZBT7JjjOxs8rjlbJFPpc1qZAdfl9rt28PvovIeZCP7aUwr2a5K0KUmSzZBefrNMbmLv8W5nZAy66IGENlph487hYodLsJn7ZCTJKm67SwjmNMyblDH1LgZD
@@ -189,6 +209,7 @@ WHATSAPP_API_TOKEN=EAAMaHPpdxEUBQnFupayR4V9l2b7uXZBZAw3R5azM5qn1NUjbK9JT7FQjiFFi
 ### Security Note
 
 **Important:** These credentials are sensitive. Share them securely with your developer:
+
 - Use a secure method (encrypted email, password manager share, or secure messaging)
 - Don't share them in public channels or unsecured emails
 - Your developer will add them to the system securely
@@ -223,12 +244,14 @@ After your developer has set up the integrations, you can test them:
 ### Google Calendar Issues
 
 **Problem:** Bookings not appearing in calendar
+
 - **Check:** Service account has "Make changes to events" permission
 - **Check:** Calendar ID is correct
 - **Check:** Service account key is correctly base64 encoded
 - **Solution:** Re-share calendar with service account email
 
 **Problem:** "Permission denied" errors
+
 - **Check:** Service account email is added to calendar sharing
 - **Check:** Permission level is "Make changes to events" or "Make changes and manage sharing"
 - **Solution:** Remove and re-add service account with correct permissions
@@ -236,17 +259,20 @@ After your developer has set up the integrations, you can test them:
 ### WhatsApp Issues
 
 **Problem:** WhatsApp messages not sending
+
 - **Check:** Phone Number ID is correct
 - **Check:** Access token is valid (not expired)
 - **Check:** Phone numbers are in correct format (with country code)
 - **Solution:** Generate a new access token if expired
 
 **Problem:** "Template not found" errors
+
 - **Note:** WhatsApp requires approved message templates
 - **Solution:** Your developer needs to set up WhatsApp message templates in Meta Business Suite
 - Templates need to be approved by Meta before use
 
 **Problem:** Rate limits
+
 - **Note:** WhatsApp has rate limits on messages
 - **Solution:** Wait and retry, or contact Meta support if limits are too restrictive
 
@@ -257,12 +283,14 @@ After your developer has set up the integrations, you can test them:
 Your developer will also need to set up WhatsApp message templates. These are pre-approved message formats that WhatsApp requires for automated messages.
 
 **Required Templates:**
+
 1. **Booking Confirmation** - Sent when a booking is created
 2. **Bike Ready Notification** - Sent when you mark a booking as ready
 3. **Service Reminder** - Sent for 6-month reminders
 4. **Booking Cancellation** - Sent when a booking is cancelled
 
 **Template Setup:**
+
 1. Go to Meta Business Suite → **WhatsApp** → **Message Templates**
 2. Create templates for each message type
 3. Submit for approval (can take 24-48 hours)
@@ -273,6 +301,7 @@ Your developer will also need to set up WhatsApp message templates. These are pr
 ## Quick Reference Checklist
 
 ### Google Calendar Setup
+
 - [ ] Created Google Cloud project
 - [ ] Enabled Google Calendar API
 - [ ] Created service account
@@ -283,6 +312,7 @@ Your developer will also need to set up WhatsApp message templates. These are pr
 - [ ] Provided credentials to developer
 
 ### WhatsApp Setup
+
 - [ ] Created Meta Business account
 - [ ] Set up WhatsApp Business API
 - [ ] Got Phone Number ID
@@ -295,6 +325,7 @@ Your developer will also need to set up WhatsApp message templates. These are pr
 **Need Help?**
 
 If you get stuck at any step:
+
 1. Check the troubleshooting section above
 2. Contact your developer for assistance
 3. Refer to official documentation:
