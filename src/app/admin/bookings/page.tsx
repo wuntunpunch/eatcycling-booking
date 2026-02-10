@@ -30,6 +30,9 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<'date' | 'reference' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [editingNotesBooking, setEditingNotesBooking] = useState<BookingWithCustomer | null>(null);
+  const [notesText, setNotesText] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dropdownMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { showToast, ToastComponent } = useToast();
@@ -118,6 +121,39 @@ export default function BookingsPage() {
       showToast('Failed to fetch bookings', 'error');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSaveNotes() {
+    if (!editingNotesBooking) return;
+    
+    setSavingNotes(true);
+    try {
+      const response = await fetchWithRetry(
+        `/api/bookings/${editingNotesBooking.id}/notes`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ notes: notesText }),
+        },
+        1
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        showToast('Failed to save notes', 'error');
+        return;
+      }
+
+      showToast('Notes saved successfully', 'success');
+      setEditingNotesBooking(null);
+      setNotesText('');
+      fetchBookings(); // Refresh bookings
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      showToast('Failed to save notes', 'error');
+    } finally {
+      setSavingNotes(false);
     }
   }
 
@@ -1069,7 +1105,8 @@ export default function BookingsPage() {
             <col className="w-[20%]" />
             <col className="w-[15%]" />
             <col className="w-[10%]" />
-            <col className="w-[29%]" />
+            <col className="w-[10%]" />
+            <col className="w-[19%]" />
           </colgroup>
           <thead className="bg-gray-50">
             <tr>
@@ -1110,6 +1147,9 @@ export default function BookingsPage() {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Notes
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Actions
@@ -1166,6 +1206,17 @@ export default function BookingsPage() {
                     >
                       {booking.status}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <button
+                      onClick={() => {
+                        setEditingNotesBooking(booking);
+                        setNotesText(booking.notes || '');
+                      }}
+                      className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                    >
+                      {booking.notes ? 'View/Edit' : 'Add Notes'}
+                    </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <ActionDropdown booking={booking} />
@@ -1552,6 +1603,72 @@ export default function BookingsPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processingBookings.size > 0 ? 'Sending...' : 'Send Reminders'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notes Modal */}
+      {editingNotesBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-labelledby="notes-modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => {
+              setEditingNotesBooking(null);
+              setNotesText('');
+            }}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <h3
+                id="notes-modal-title"
+                className="text-lg font-semibold text-gray-900 mb-4"
+              >
+                Notes for {editingNotesBooking.customer.name}
+              </h3>
+
+              <div className="mb-4">
+                <label htmlFor="notes-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+                  Notes
+                </label>
+                <textarea
+                  id="notes-textarea"
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  rows={8}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Add notes about this booking..."
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingNotesBooking(null);
+                    setNotesText('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={savingNotes}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingNotes ? 'Saving...' : 'Save Notes'}
                 </button>
               </div>
             </div>
