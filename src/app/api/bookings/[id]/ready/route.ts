@@ -73,7 +73,17 @@ export async function POST(
       }
     }
 
-    return NextResponse.json({ success: true });
+    // Return updated booking for immediate UI update (avoids refetch race/stale data)
+    const { data: updatedBooking } = await supabase
+      .from('bookings')
+      .select(`*, customer:customers(*)`)
+      .eq('id', id)
+      .single();
+
+    return NextResponse.json({
+      success: true,
+      booking: updatedBooking ?? undefined,
+    });
   } catch (error) {
     console.error('Mark ready error:', error);
     return NextResponse.json(

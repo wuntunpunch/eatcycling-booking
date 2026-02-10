@@ -140,9 +140,9 @@ Use the search bar at the top to search by:
 3. **Mark as Complete**: 
    - Marks the booking as finished
    - Moves it to completed bookings
-4. **Add Notes**: 
-   - Add notes about the booking (only you can see these)
-   - Useful for reminders or special instructions
+4. **Bike Details**: 
+   - View and edit the customer's bike details (make, model, issues)
+   - Bike details are provided by the customer when they book
 5. **Cancel Booking**: 
    - Cancel a booking if needed
    - You can choose to send a WhatsApp message to the customer

@@ -27,11 +27,16 @@ export default function BookingsPage() {
   const [bulkReminderBookings, setBulkReminderBookings] = useState<BookingWithCustomer[]>([]);
   const [displayCount, setDisplayCount] = useState(5);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top?: number; bottom?: number; left: number; positionAbove: boolean } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<'date' | 'reference' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [editingBikeDetailsBooking, setEditingBikeDetailsBooking] = useState<BookingWithCustomer | null>(null);
+  const [bikeDetailsText, setBikeDetailsText] = useState('');
+  const [savingBikeDetails, setSavingBikeDetails] = useState(false);
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dropdownMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const prevOpenDropdownRef = useRef<string | null>(null);
   const { showToast, ToastComponent } = useToast();
 
   // Close dropdown when clicking outside
@@ -94,7 +99,7 @@ export default function BookingsPage() {
 
   async function fetchBookings() {
     try {
-      const response = await fetchWithRetry('/api/admin/bookings', {}, 1);
+      const response = await fetchWithRetry('/api/admin/bookings', { cache: 'no-store' }, 1);
       
       if (response.status === 401) {
         showToast('Session expired, please log in again', 'error');
@@ -121,6 +126,39 @@ export default function BookingsPage() {
     }
   }
 
+  async function handleSaveBikeDetails() {
+    if (!editingBikeDetailsBooking) return;
+
+    setSavingBikeDetails(true);
+    try {
+      const response = await fetchWithRetry(
+        `/api/bookings/${editingBikeDetailsBooking.id}/bike-details`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bike_details: bikeDetailsText }),
+        },
+        1
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        showToast('Failed to save bike details', 'error');
+        return;
+      }
+
+      showToast('Bike details saved successfully', 'success');
+      setEditingBikeDetailsBooking(null);
+      setBikeDetailsText('');
+      fetchBookings(); // Refresh bookings
+    } catch (error) {
+      console.error('Error saving bike details:', error);
+      showToast('Failed to save bike details', 'error');
+    } finally {
+      setSavingBikeDetails(false);
+    }
+  }
+
   async function handleMarkReady(bookingId: string, skipWhatsApp = false) {
     setProcessingBookings((prev) => new Set(prev).add(bookingId));
     try {
@@ -131,6 +169,13 @@ export default function BookingsPage() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        // Immediately update state from API response to avoid refetch returning stale data
+        if (data.booking) {
+          setBookings((prev) =>
+            prev.map((b) => (b.id === bookingId ? { ...b, ...data.booking } : b))
+          );
+        }
         showToast(
           skipWhatsApp
             ? 'Booking marked as ready (no WhatsApp sent)'
@@ -666,67 +711,58 @@ export default function BookingsPage() {
   }
 
 
+  // Compute dropdown position from trigger element - called at click time to avoid timing/layout issues
+  // When positionAbove: use bottom so dropdown anchors and grows upward (works for any content height)
+  function computeDropdownPosition(triggerEl: HTMLElement): { top?: number; bottom?: number; left: number; positionAbove: boolean } {
+    const rect = triggerEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropdownHeightEstimate = 100; // For deciding above vs below only
+    const dropdownWidth = 224; // w-56
+
+    const tableContainer = triggerEl.closest('.overflow-x-auto');
+    const cardContainer = triggerEl.closest('.rounded-lg.bg-white');
+    let containerRect: DOMRect | null = null;
+    if (cardContainer) {
+      containerRect = cardContainer.getBoundingClientRect();
+    } else if (tableContainer) {
+      containerRect = tableContainer.getBoundingClientRect();
+    }
+
+    const availableSpaceBelow = containerRect
+      ? containerRect.bottom - rect.bottom - 20
+      : spaceBelow;
+    const availableSpaceAbove = containerRect
+      ? rect.top - containerRect.top - 20
+      : spaceAbove;
+
+    const positionAbove = availableSpaceBelow < dropdownHeightEstimate && availableSpaceAbove > availableSpaceBelow;
+    const left = rect.right - dropdownWidth;
+
+    return positionAbove
+      ? { bottom: viewportHeight - rect.top + 4, left, positionAbove }
+      : { top: rect.bottom + 4, left, positionAbove };
+  }
+
+  // Clear dropdown position and refs when closing
+  useEffect(() => {
+    if (!openDropdown) {
+      setDropdownPosition(null);
+      if (prevOpenDropdownRef.current) {
+        dropdownMenuRefs.current[prevOpenDropdownRef.current] = null;
+        prevOpenDropdownRef.current = null;
+      }
+    } else {
+      prevOpenDropdownRef.current = openDropdown;
+    }
+  }, [openDropdown]);
+
   // Action Dropdown Component
   function ActionDropdown({ booking }: { booking: BookingWithCustomer }) {
     const isOpen = openDropdown === booking.id;
     const isProcessing = processingBookings.has(booking.id);
-    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
     const buttonRef = useRef<HTMLDivElement | null>(null);
-
-    // Calculate dropdown position when it opens
-    useEffect(() => {
-      if (isOpen && buttonRef.current) {
-        // Use requestAnimationFrame to ensure DOM is updated
-        requestAnimationFrame(() => {
-          if (!buttonRef.current) return;
-          
-          const rect = buttonRef.current.getBoundingClientRect();
-          const viewportHeight = window.innerHeight;
-          const spaceBelow = viewportHeight - rect.bottom;
-          const spaceAbove = rect.top;
-          const dropdownHeight = 150; // Approximate dropdown height
-          const dropdownWidth = 224; // w-56 = 14rem = 224px
-          
-          // Find the table container and card container
-          const tableContainer = buttonRef.current.closest('.overflow-x-auto');
-          const cardContainer = buttonRef.current.closest('.rounded-lg.bg-white');
-          
-          let containerRect: DOMRect | null = null;
-          
-          // Prefer card container bounds, then table container, then viewport
-          if (cardContainer) {
-            containerRect = cardContainer.getBoundingClientRect();
-          } else if (tableContainer) {
-            containerRect = tableContainer.getBoundingClientRect();
-          }
-          
-          // Calculate space relative to container if available, otherwise use viewport
-          const availableSpaceBelow = containerRect 
-            ? containerRect.bottom - rect.bottom - 20 // 20px padding
-            : spaceBelow;
-          const availableSpaceAbove = containerRect
-            ? rect.top - containerRect.top - 20 // 20px padding
-            : spaceAbove;
-          
-          // Position above if not enough space below (with buffer) and more space above
-          const positionAbove = availableSpaceBelow < dropdownHeight && availableSpaceAbove > availableSpaceBelow;
-          
-          // Calculate position - align right edge of dropdown with right edge of button
-          const left = rect.right - dropdownWidth;
-          const top = positionAbove 
-            ? rect.top - dropdownHeight - 4 // 4px gap above
-            : rect.bottom + 4; // 4px gap below
-          
-          setDropdownPosition({ top, left, positionAbove });
-        });
-      } else {
-        setDropdownPosition(null);
-        // Clean up dropdown menu ref when closing
-        if (dropdownMenuRefs.current[booking.id]) {
-          dropdownMenuRefs.current[booking.id] = null;
-        }
-      }
-    }, [isOpen, booking.id]);
 
     if (booking.status === 'complete') {
       return <span className="text-gray-400">Complete</span>;
@@ -737,7 +773,14 @@ export default function BookingsPage() {
         <div className="relative flex items-center gap-1">
           <span className="text-gray-400">Cancelled</span>
           <button
-            onClick={() => setOpenDropdown(isOpen ? null : booking.id)}
+            onClick={(e) => {
+              if (isOpen) {
+                setOpenDropdown(null);
+                return;
+              }
+              setDropdownPosition(computeDropdownPosition(e.currentTarget));
+              setOpenDropdown(booking.id);
+            }}
             disabled={isProcessing}
             className="text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed p-1"
             aria-label="More options"
@@ -756,10 +799,12 @@ export default function BookingsPage() {
               ref={(el) => {
                 dropdownMenuRefs.current[booking.id] = el;
               }}
-              className="fixed w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+              className="w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
               style={{
-                top: `${dropdownPosition.top}px`,
-                left: `${dropdownPosition.left}px`,
+                position: 'fixed',
+                ...(dropdownPosition.positionAbove
+                  ? { bottom: dropdownPosition.bottom, left: dropdownPosition.left }
+                  : { top: dropdownPosition.top, left: dropdownPosition.left }),
               }}
             >
               <div className="py-1">
@@ -819,7 +864,14 @@ export default function BookingsPage() {
           </button>
         )}
         <button
-          onClick={() => setOpenDropdown(isOpen ? null : booking.id)}
+          onClick={(e) => {
+            if (isOpen) {
+              setOpenDropdown(null);
+              return;
+            }
+            setDropdownPosition(computeDropdownPosition(e.currentTarget));
+            setOpenDropdown(booking.id);
+          }}
           disabled={isProcessing}
           className="text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed p-1"
           aria-label="More options"
@@ -839,10 +891,12 @@ export default function BookingsPage() {
             ref={(el) => {
               dropdownMenuRefs.current[booking.id] = el;
             }}
-            className="fixed w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+            className="w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
             style={{
-              top: `${dropdownPosition.top}px`,
-              left: `${dropdownPosition.left}px`,
+              position: 'fixed',
+              ...(dropdownPosition.positionAbove
+                ? { bottom: dropdownPosition.bottom, left: dropdownPosition.left }
+                : { top: dropdownPosition.top, left: dropdownPosition.left }),
             }}
           >
             <div className="py-1">
@@ -1061,16 +1115,7 @@ export default function BookingsPage() {
 
     return (
       <div className="overflow-x-auto overflow-y-visible">
-        <table className="w-full table-fixed divide-y divide-gray-200">
-          <colgroup>
-            {showCheckboxes && <col className="w-[4%]" />}
-            <col className="w-[10%]" />
-            <col className="w-[12%]" />
-            <col className="w-[20%]" />
-            <col className="w-[15%]" />
-            <col className="w-[10%]" />
-            <col className="w-[29%]" />
-          </colgroup>
+        <table className="w-full min-w-[900px] divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               {showCheckboxes && (
@@ -1092,7 +1137,7 @@ export default function BookingsPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 <button
                   onClick={handleSortReference}
-                  className="flex items-center gap-1 hover:text-gray-700"
+                  className="inline-flex items-center gap-1 hover:text-gray-700"
                 >
                   Reference
                   {sortColumn === 'reference' && (
@@ -1110,6 +1155,9 @@ export default function BookingsPage() {
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Status
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Bike Details
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Actions
@@ -1167,7 +1215,18 @@ export default function BookingsPage() {
                       {booking.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm align-top">
+                    <button
+                      onClick={() => {
+                        setEditingBikeDetailsBooking(booking);
+                        setBikeDetailsText(booking.bike_details || '');
+                      }}
+                      className="pl-0 pr-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                    >
+                      {booking.bike_details ? 'View/Edit' : 'Add'}
+                    </button>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm align-top">
                     <ActionDropdown booking={booking} />
                   </td>
                 </tr>
@@ -1552,6 +1611,72 @@ export default function BookingsPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {processingBookings.size > 0 ? 'Sending...' : 'Send Reminders'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bike Details Modal */}
+      {editingBikeDetailsBooking && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          aria-labelledby="bike-details-modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={() => {
+              setEditingBikeDetailsBooking(null);
+              setBikeDetailsText('');
+            }}
+          />
+
+          {/* Modal */}
+          <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 transform transition-all">
+            <div className="p-6">
+              <h3
+                id="bike-details-modal-title"
+                className="text-lg font-semibold text-gray-900 mb-4"
+              >
+                Bike Details for {editingBikeDetailsBooking.customer.name}
+              </h3>
+
+              <div className="mb-4">
+                <label htmlFor="bike-details-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+                  Bike Details
+                </label>
+                <textarea
+                  id="bike-details-textarea"
+                  value={bikeDetailsText}
+                  onChange={(e) => setBikeDetailsText(e.target.value)}
+                  rows={8}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Make, model, any issues you've noticed..."
+                />
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingBikeDetailsBooking(null);
+                    setBikeDetailsText('');
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveBikeDetails}
+                  disabled={savingBikeDetails}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingBikeDetails ? 'Saving...' : 'Save Bike Details'}
                 </button>
               </div>
             </div>
