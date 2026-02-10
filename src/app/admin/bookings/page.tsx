@@ -30,9 +30,9 @@ export default function BookingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<'date' | 'reference' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [editingNotesBooking, setEditingNotesBooking] = useState<BookingWithCustomer | null>(null);
-  const [notesText, setNotesText] = useState('');
-  const [savingNotes, setSavingNotes] = useState(false);
+  const [editingBikeDetailsBooking, setEditingBikeDetailsBooking] = useState<BookingWithCustomer | null>(null);
+  const [bikeDetailsText, setBikeDetailsText] = useState('');
+  const [savingBikeDetails, setSavingBikeDetails] = useState(false);
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dropdownMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const { showToast, ToastComponent } = useToast();
@@ -124,36 +124,36 @@ export default function BookingsPage() {
     }
   }
 
-  async function handleSaveNotes() {
-    if (!editingNotesBooking) return;
-    
-    setSavingNotes(true);
+  async function handleSaveBikeDetails() {
+    if (!editingBikeDetailsBooking) return;
+
+    setSavingBikeDetails(true);
     try {
       const response = await fetchWithRetry(
-        `/api/bookings/${editingNotesBooking.id}/notes`,
+        `/api/bookings/${editingBikeDetailsBooking.id}/bike-details`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ notes: notesText }),
+          body: JSON.stringify({ bike_details: bikeDetailsText }),
         },
         1
       );
 
       if (!response.ok) {
         const error = await response.json();
-        showToast('Failed to save notes', 'error');
+        showToast('Failed to save bike details', 'error');
         return;
       }
 
-      showToast('Notes saved successfully', 'success');
-      setEditingNotesBooking(null);
-      setNotesText('');
+      showToast('Bike details saved successfully', 'success');
+      setEditingBikeDetailsBooking(null);
+      setBikeDetailsText('');
       fetchBookings(); // Refresh bookings
     } catch (error) {
-      console.error('Error saving notes:', error);
-      showToast('Failed to save notes', 'error');
+      console.error('Error saving bike details:', error);
+      showToast('Failed to save bike details', 'error');
     } finally {
-      setSavingNotes(false);
+      setSavingBikeDetails(false);
     }
   }
 
@@ -1149,7 +1149,7 @@ export default function BookingsPage() {
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Notes
+                Bike Details
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Actions
@@ -1210,12 +1210,12 @@ export default function BookingsPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <button
                       onClick={() => {
-                        setEditingNotesBooking(booking);
-                        setNotesText(booking.notes || '');
+                        setEditingBikeDetailsBooking(booking);
+                        setBikeDetailsText(booking.bike_details || '');
                       }}
                       className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                     >
-                      {booking.notes ? 'View/Edit' : 'Add Notes'}
+                      {booking.bike_details ? 'View/Edit' : 'Add'}
                     </button>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -1610,11 +1610,11 @@ export default function BookingsPage() {
         </div>
       )}
 
-      {/* Notes Modal */}
-      {editingNotesBooking && (
+      {/* Bike Details Modal */}
+      {editingBikeDetailsBooking && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
-          aria-labelledby="notes-modal-title"
+          aria-labelledby="bike-details-modal-title"
           role="dialog"
           aria-modal="true"
         >
@@ -1622,8 +1622,8 @@ export default function BookingsPage() {
           <div
             className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
             onClick={() => {
-              setEditingNotesBooking(null);
-              setNotesText('');
+              setEditingBikeDetailsBooking(null);
+              setBikeDetailsText('');
             }}
           />
 
@@ -1631,23 +1631,23 @@ export default function BookingsPage() {
           <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 transform transition-all">
             <div className="p-6">
               <h3
-                id="notes-modal-title"
+                id="bike-details-modal-title"
                 className="text-lg font-semibold text-gray-900 mb-4"
               >
-                Notes for {editingNotesBooking.customer.name}
+                Bike Details for {editingBikeDetailsBooking.customer.name}
               </h3>
 
               <div className="mb-4">
-                <label htmlFor="notes-textarea" className="block text-sm font-medium text-gray-700 mb-2">
-                  Notes
+                <label htmlFor="bike-details-textarea" className="block text-sm font-medium text-gray-700 mb-2">
+                  Bike Details
                 </label>
                 <textarea
-                  id="notes-textarea"
-                  value={notesText}
-                  onChange={(e) => setNotesText(e.target.value)}
+                  id="bike-details-textarea"
+                  value={bikeDetailsText}
+                  onChange={(e) => setBikeDetailsText(e.target.value)}
                   rows={8}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Add notes about this booking..."
+                  placeholder="Make, model, any issues you've noticed..."
                 />
               </div>
 
@@ -1655,8 +1655,8 @@ export default function BookingsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setEditingNotesBooking(null);
-                    setNotesText('');
+                    setEditingBikeDetailsBooking(null);
+                    setBikeDetailsText('');
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
                 >
@@ -1664,11 +1664,11 @@ export default function BookingsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveNotes}
-                  disabled={savingNotes}
+                  onClick={handleSaveBikeDetails}
+                  disabled={savingBikeDetails}
                   className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {savingNotes ? 'Saving...' : 'Save Notes'}
+                  {savingBikeDetails ? 'Saving...' : 'Save Bike Details'}
                 </button>
               </div>
             </div>
