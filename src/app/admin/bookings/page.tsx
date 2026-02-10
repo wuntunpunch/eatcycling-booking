@@ -27,6 +27,7 @@ export default function BookingsPage() {
   const [bulkReminderBookings, setBulkReminderBookings] = useState<BookingWithCustomer[]>([]);
   const [displayCount, setDisplayCount] = useState(5);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top?: number; bottom?: number; left: number; positionAbove: boolean } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<'date' | 'reference' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -35,6 +36,7 @@ export default function BookingsPage() {
   const [savingBikeDetails, setSavingBikeDetails] = useState(false);
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const dropdownMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const prevOpenDropdownRef = useRef<string | null>(null);
   const { showToast, ToastComponent } = useToast();
 
   // Close dropdown when clicking outside
@@ -709,67 +711,58 @@ export default function BookingsPage() {
   }
 
 
+  // Compute dropdown position from trigger element - called at click time to avoid timing/layout issues
+  // When positionAbove: use bottom so dropdown anchors and grows upward (works for any content height)
+  function computeDropdownPosition(triggerEl: HTMLElement): { top?: number; bottom?: number; left: number; positionAbove: boolean } {
+    const rect = triggerEl.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropdownHeightEstimate = 100; // For deciding above vs below only
+    const dropdownWidth = 224; // w-56
+
+    const tableContainer = triggerEl.closest('.overflow-x-auto');
+    const cardContainer = triggerEl.closest('.rounded-lg.bg-white');
+    let containerRect: DOMRect | null = null;
+    if (cardContainer) {
+      containerRect = cardContainer.getBoundingClientRect();
+    } else if (tableContainer) {
+      containerRect = tableContainer.getBoundingClientRect();
+    }
+
+    const availableSpaceBelow = containerRect
+      ? containerRect.bottom - rect.bottom - 20
+      : spaceBelow;
+    const availableSpaceAbove = containerRect
+      ? rect.top - containerRect.top - 20
+      : spaceAbove;
+
+    const positionAbove = availableSpaceBelow < dropdownHeightEstimate && availableSpaceAbove > availableSpaceBelow;
+    const left = rect.right - dropdownWidth;
+
+    return positionAbove
+      ? { bottom: viewportHeight - rect.top + 4, left, positionAbove }
+      : { top: rect.bottom + 4, left, positionAbove };
+  }
+
+  // Clear dropdown position and refs when closing
+  useEffect(() => {
+    if (!openDropdown) {
+      setDropdownPosition(null);
+      if (prevOpenDropdownRef.current) {
+        dropdownMenuRefs.current[prevOpenDropdownRef.current] = null;
+        prevOpenDropdownRef.current = null;
+      }
+    } else {
+      prevOpenDropdownRef.current = openDropdown;
+    }
+  }, [openDropdown]);
+
   // Action Dropdown Component
   function ActionDropdown({ booking }: { booking: BookingWithCustomer }) {
     const isOpen = openDropdown === booking.id;
     const isProcessing = processingBookings.has(booking.id);
-    const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; positionAbove: boolean } | null>(null);
     const buttonRef = useRef<HTMLDivElement | null>(null);
-
-    // Calculate dropdown position when it opens
-    useEffect(() => {
-      if (isOpen && buttonRef.current) {
-        // Use requestAnimationFrame to ensure DOM is updated
-        requestAnimationFrame(() => {
-          if (!buttonRef.current) return;
-          
-          const rect = buttonRef.current.getBoundingClientRect();
-          const viewportHeight = window.innerHeight;
-          const spaceBelow = viewportHeight - rect.bottom;
-          const spaceAbove = rect.top;
-          const dropdownHeight = 150; // Approximate dropdown height
-          const dropdownWidth = 224; // w-56 = 14rem = 224px
-          
-          // Find the table container and card container
-          const tableContainer = buttonRef.current.closest('.overflow-x-auto');
-          const cardContainer = buttonRef.current.closest('.rounded-lg.bg-white');
-          
-          let containerRect: DOMRect | null = null;
-          
-          // Prefer card container bounds, then table container, then viewport
-          if (cardContainer) {
-            containerRect = cardContainer.getBoundingClientRect();
-          } else if (tableContainer) {
-            containerRect = tableContainer.getBoundingClientRect();
-          }
-          
-          // Calculate space relative to container if available, otherwise use viewport
-          const availableSpaceBelow = containerRect 
-            ? containerRect.bottom - rect.bottom - 20 // 20px padding
-            : spaceBelow;
-          const availableSpaceAbove = containerRect
-            ? rect.top - containerRect.top - 20 // 20px padding
-            : spaceAbove;
-          
-          // Position above if not enough space below (with buffer) and more space above
-          const positionAbove = availableSpaceBelow < dropdownHeight && availableSpaceAbove > availableSpaceBelow;
-          
-          // Calculate position - align right edge of dropdown with right edge of button
-          const left = rect.right - dropdownWidth;
-          const top = positionAbove 
-            ? rect.top - dropdownHeight - 4 // 4px gap above
-            : rect.bottom + 4; // 4px gap below
-          
-          setDropdownPosition({ top, left, positionAbove });
-        });
-      } else {
-        setDropdownPosition(null);
-        // Clean up dropdown menu ref when closing
-        if (dropdownMenuRefs.current[booking.id]) {
-          dropdownMenuRefs.current[booking.id] = null;
-        }
-      }
-    }, [isOpen, booking.id]);
 
     if (booking.status === 'complete') {
       return <span className="text-gray-400">Complete</span>;
@@ -780,7 +773,14 @@ export default function BookingsPage() {
         <div className="relative flex items-center gap-1">
           <span className="text-gray-400">Cancelled</span>
           <button
-            onClick={() => setOpenDropdown(isOpen ? null : booking.id)}
+            onClick={(e) => {
+              if (isOpen) {
+                setOpenDropdown(null);
+                return;
+              }
+              setDropdownPosition(computeDropdownPosition(e.currentTarget));
+              setOpenDropdown(booking.id);
+            }}
             disabled={isProcessing}
             className="text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed p-1"
             aria-label="More options"
@@ -799,10 +799,12 @@ export default function BookingsPage() {
               ref={(el) => {
                 dropdownMenuRefs.current[booking.id] = el;
               }}
-              className="fixed w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+              className="w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
               style={{
-                top: `${dropdownPosition.top}px`,
-                left: `${dropdownPosition.left}px`,
+                position: 'fixed',
+                ...(dropdownPosition.positionAbove
+                  ? { bottom: dropdownPosition.bottom, left: dropdownPosition.left }
+                  : { top: dropdownPosition.top, left: dropdownPosition.left }),
               }}
             >
               <div className="py-1">
@@ -862,7 +864,14 @@ export default function BookingsPage() {
           </button>
         )}
         <button
-          onClick={() => setOpenDropdown(isOpen ? null : booking.id)}
+          onClick={(e) => {
+            if (isOpen) {
+              setOpenDropdown(null);
+              return;
+            }
+            setDropdownPosition(computeDropdownPosition(e.currentTarget));
+            setOpenDropdown(booking.id);
+          }}
           disabled={isProcessing}
           className="text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed p-1"
           aria-label="More options"
@@ -882,10 +891,12 @@ export default function BookingsPage() {
             ref={(el) => {
               dropdownMenuRefs.current[booking.id] = el;
             }}
-            className="fixed w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
+            className="w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50"
             style={{
-              top: `${dropdownPosition.top}px`,
-              left: `${dropdownPosition.left}px`,
+              position: 'fixed',
+              ...(dropdownPosition.positionAbove
+                ? { bottom: dropdownPosition.bottom, left: dropdownPosition.left }
+                : { top: dropdownPosition.top, left: dropdownPosition.left }),
             }}
           >
             <div className="py-1">
