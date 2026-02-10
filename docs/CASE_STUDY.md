@@ -140,7 +140,7 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
     - Cancelled bookings excluded from capacity calculations
   - **Restore cancelled booking** - Reverse cancellation and restore to pending status
   - **Send collection reminder** - Manual reminder for bikes ready for collection
-  - Add notes
+  - View/edit bike details
   - View full booking details
 
 **2. Customer Search**

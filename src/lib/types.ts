@@ -30,7 +30,6 @@ export interface Booking {
   date: string;
   bike_details: string;
   status: BookingStatus;
-  notes: string | null;
   reference_number: string | null;
   calendar_event_id?: string | null;
   completed_at?: string;

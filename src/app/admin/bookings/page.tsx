@@ -1097,17 +1097,7 @@ export default function BookingsPage() {
 
     return (
       <div className="overflow-x-auto overflow-y-visible">
-        <table className="w-full table-fixed divide-y divide-gray-200">
-          <colgroup>
-            {showCheckboxes && <col className="w-[4%]" />}
-            <col className="w-[10%]" />
-            <col className="w-[12%]" />
-            <col className="w-[20%]" />
-            <col className="w-[15%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[19%]" />
-          </colgroup>
+        <table className="w-full min-w-[900px] divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               {showCheckboxes && (
@@ -1129,7 +1119,7 @@ export default function BookingsPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 <button
                   onClick={handleSortReference}
-                  className="flex items-center gap-1 hover:text-gray-700"
+                  className="inline-flex items-center gap-1 hover:text-gray-700"
                 >
                   Reference
                   {sortColumn === 'reference' && (
@@ -1207,18 +1197,18 @@ export default function BookingsPage() {
                       {booking.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm align-top">
                     <button
                       onClick={() => {
                         setEditingBikeDetailsBooking(booking);
                         setBikeDetailsText(booking.bike_details || '');
                       }}
-                      className="px-3 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                      className="pl-0 pr-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                     >
                       {booking.bike_details ? 'View/Edit' : 'Add'}
                     </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm align-top">
                     <ActionDropdown booking={booking} />
                   </td>
                 </tr>
