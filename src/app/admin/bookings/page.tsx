@@ -97,7 +97,7 @@ export default function BookingsPage() {
 
   async function fetchBookings() {
     try {
-      const response = await fetchWithRetry('/api/admin/bookings', {}, 1);
+      const response = await fetchWithRetry('/api/admin/bookings', { cache: 'no-store' }, 1);
       
       if (response.status === 401) {
         showToast('Session expired, please log in again', 'error');
@@ -167,6 +167,13 @@ export default function BookingsPage() {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        // Immediately update state from API response to avoid refetch returning stale data
+        if (data.booking) {
+          setBookings((prev) =>
+            prev.map((b) => (b.id === bookingId ? { ...b, ...data.booking } : b))
+          );
+        }
         showToast(
           skipWhatsApp
             ? 'Booking marked as ready (no WhatsApp sent)'
