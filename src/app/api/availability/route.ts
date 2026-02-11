@@ -41,12 +41,7 @@ export async function GET() {
           excludedDates: [],
           bookingCounts: {},
         } as AvailabilitySettingsResponse,
-        {
-          status: 200,
-          headers: {
-            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-          },
-        }
+        { status: 200 }
       );
     }
 
@@ -101,12 +96,7 @@ export async function GET() {
           excludedDates: [],
           bookingCounts,
         } as AvailabilitySettingsResponse,
-        {
-          status: 200,
-          headers: {
-            'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-          },
-        }
+        { status: 200 }
       );
     }
 
@@ -119,12 +109,7 @@ export async function GET() {
         excludedDates: futureDates,
         bookingCounts,
       } as AvailabilitySettingsResponse,
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-        },
-      }
+      { status: 200 }
     );
   } catch (error) {
     console.error('Error in availability API:', error);
