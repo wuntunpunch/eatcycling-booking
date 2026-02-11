@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { ServiceType, SERVICE_LABELS, BookingFormData, AvailabilitySettingsResponse } from '@/lib/types';
@@ -38,7 +38,7 @@ export default function BookingForm() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [availabilityData, setAvailabilityData] = useState<AvailabilitySettingsResponse | null>(null);
   const [dateError, setDateError] = useState('');
-  const [loadingAvailability, setLoadingAvailability] = useState(true);
+  const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [bookingCounts, setBookingCounts] = useState<{ [date: string]: number }>({});
   const [bookingReference, setBookingReference] = useState<string | null>(null);
   const [bookingData, setBookingData] = useState<CalendarBookingData | null>(null);
@@ -52,37 +52,35 @@ export default function BookingForm() {
     return 'desktop';
   }, []);
 
-  // Fetch availability settings on mount
-  useEffect(() => {
-    async function fetchAvailability() {
-      try {
-        const response = await fetch('/api/availability');
-        if (response.ok) {
-          const data: AvailabilitySettingsResponse = await response.json();
-          setAvailabilityData(data);
-          setBookingCounts(data.bookingCounts || {});
-          // Debug: log booking counts to verify they're being fetched
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Booking counts loaded:', data.bookingCounts);
-            console.log('Max services per day:', data.settings.max_services_per_day);
-            // Check for January 29th specifically
-            if (data.bookingCounts?.['2026-01-29']) {
-              console.log('Jan 29 booking count:', data.bookingCounts['2026-01-29']);
-            }
+  // Fetch availability when user opens the date picker (lazy load for fresh data)
+  const fetchAvailability = useCallback(async () => {
+    setLoadingAvailability(true);
+    try {
+      const response = await fetch('/api/availability');
+      if (response.ok) {
+        const data: AvailabilitySettingsResponse = await response.json();
+        setAvailabilityData(data);
+        setBookingCounts(data.bookingCounts || {});
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Booking counts loaded:', data.bookingCounts);
+          console.log('Max services per day:', data.settings.max_services_per_day);
+          if (data.bookingCounts?.['2026-01-29']) {
+            console.log('Jan 29 booking count:', data.bookingCounts['2026-01-29']);
           }
-        } else {
-          console.error('Failed to fetch availability settings');
-          // Allow submission even if API fails - server will validate
         }
-      } catch (error) {
-        console.error('Error fetching availability:', error);
-        // Allow submission even if API fails - server will validate
-      } finally {
-        setLoadingAvailability(false);
+      } else {
+        console.error('Failed to fetch availability settings');
       }
+    } catch (error) {
+      console.error('Error fetching availability:', error);
+    } finally {
+      setLoadingAvailability(false);
     }
-    fetchAvailability();
   }, []);
+
+  const handleCalendarOpen = useCallback(() => {
+    fetchAvailability();
+  }, [fetchAvailability]);
 
   // Validate selected date
   useEffect(() => {
@@ -219,7 +217,7 @@ export default function BookingForm() {
 
   // Filter function for date picker - excludes weekends, excluded dates, etc.
   const filterDate = (date: Date) => {
-    if (!availabilityData) return true; // Allow all dates if availability not loaded
+    if (!availabilityData) return false; // No dates selectable until availability loads
     
     // Format date as YYYY-MM-DD in local timezone to avoid UTC conversion issues
     const year = date.getFullYear();
@@ -494,32 +492,25 @@ export default function BookingForm() {
         <label htmlFor="date" className="block text-sm font-medium text-gray-700">
           Preferred Date <span className="text-red-500">*</span>
         </label>
-        {loadingAvailability ? (
-          <div className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm bg-gray-50">
-            <span className="text-gray-500 text-sm">Loading available dates...</span>
-          </div>
-        ) : (
-          <>
-            <DatePicker
-              selected={selectedDate}
-              onChange={(date: Date | null) => setSelectedDate(date)}
-              filterDate={filterDate}
-              excludeDates={datesAtCapacity}
-              minDate={today}
-              maxDate={maxDate}
-              dateFormat="yyyy-MM-dd"
-              placeholderText="Select a date"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
-              required
-            />
-            {dateError && (
-              <p className="mt-1 text-sm text-red-600">{dateError}</p>
-            )}
-            <p className="mt-2 text-sm text-gray-600 italic">
-              Drop off your bike in the morning on your selected date. You can also drop off the afternoon before if that&apos;s easier.
-            </p>
-          </>
+        <DatePicker
+          selected={selectedDate}
+          onChange={(date: Date | null) => setSelectedDate(date)}
+          onCalendarOpen={handleCalendarOpen}
+          filterDate={filterDate}
+          excludeDates={datesAtCapacity}
+          minDate={today}
+          maxDate={maxDate}
+          dateFormat="yyyy-MM-dd"
+          placeholderText="Select a date"
+          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-medium-blue focus:outline-none focus:ring-1 focus:ring-medium-blue"
+          required
+        />
+        {dateError && (
+          <p className="mt-1 text-sm text-red-600">{dateError}</p>
         )}
+        <p className="mt-2 text-sm text-gray-600 italic">
+          Drop off your bike in the morning on your selected date. You can also drop off the afternoon before if that&apos;s easier.
+        </p>
       </div>
 
       <div>
