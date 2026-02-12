@@ -48,26 +48,14 @@ Before the first deployment completes, add all required environment variables:
    ```
    - Find these in: Supabase Dashboard → Project Settings → API
 
-3. **Add Google Calendar Variables** (Required)
-   ```
-   GOOGLE_CALENDAR_ID=your_calendar_id@group.calendar.google.com
-   GOOGLE_SERVICE_ACCOUNT_KEY=base64_encoded_service_account_json
-   ```
-   - **GOOGLE_CALENDAR_ID**: Your Google Calendar ID (usually `your-email@gmail.com` or a shared calendar ID)
-   - **GOOGLE_SERVICE_ACCOUNT_KEY**: 
-     - Create a service account in Google Cloud Console
-     - Download the JSON key file
-     - Base64 encode it: `cat service-account.json | base64` (macOS/Linux)
-     - Paste the entire encoded string as the value
-
-4. **Add WhatsApp Variables** (Required)
+3. **Add WhatsApp Variables** (Required)
    ```
    WHATSAPP_PHONE_NUMBER_ID=your_phone_number_id
    WHATSAPP_API_TOKEN=your_whatsapp_access_token
    ```
    - Get these from Meta Business Suite → WhatsApp Business API
 
-5. **Add WhatsApp Template Variables** (Optional - with defaults)
+4. **Add WhatsApp Template Variables** (Optional - with defaults)
    ```
    WHATSAPP_BOOKING_TEMPLATE_NAME=booking_confirmation
    WHATSAPP_READY_TEMPLATE_NAME=bike_ready
@@ -76,7 +64,7 @@ Before the first deployment completes, add all required environment variables:
    ```
    - Adjust these to match your approved WhatsApp templates
 
-6. **Add Other Optional Variables**
+5. **Add Other Optional Variables**
    ```
    BOOKING_FORM_URL=https://book.eatcycling.co.uk
    NEXT_PUBLIC_SITE_URL=https://book.eatcycling.co.uk
@@ -147,7 +135,6 @@ Before the first deployment completes, add all required environment variables:
    - ✅ Booking form loads
    - ✅ Can submit a test booking
    - ✅ Admin login works at `/admin/login`
-   - ✅ Google Calendar event created (check your calendar)
    - ✅ WhatsApp confirmation sent (check test phone)
 
 ---
@@ -223,11 +210,6 @@ Your `vercel.json` already includes cron configuration for reminders:
 - Redeploy after adding variables (Vercel → Deployments → Redeploy)
 - Check variable names match exactly (case-sensitive)
 
-### Google Calendar Not Working
-- Verify service account has calendar access
-- Check `GOOGLE_SERVICE_ACCOUNT_KEY` is base64 encoded correctly
-- Ensure calendar ID is correct
-
 ### WhatsApp Not Working
 - Verify phone number ID and access token
 - Check template names match approved templates
@@ -239,7 +221,6 @@ Your `vercel.json` already includes cron configuration for reminders:
 
 1. **Test Full Booking Flow**
    - Submit a real booking
-   - Verify calendar event created
    - Verify WhatsApp message sent
 
 2. **Set Up Monitoring**
