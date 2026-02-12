@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendCancellationNotification } from '@/lib/whatsapp';
-import { deleteCalendarEvent } from '@/lib/google-calendar';
 import { ServiceType } from '@/lib/types';
 
 function getSupabaseClient() {
@@ -46,17 +45,6 @@ export async function POST(
         { message: 'Only pending bookings can be cancelled' },
         { status: 400 }
       );
-    }
-
-    // Delete Google Calendar event if it exists
-    if (booking.calendar_event_id) {
-      try {
-        await deleteCalendarEvent(booking.calendar_event_id);
-        console.log('Calendar event deleted:', booking.calendar_event_id);
-      } catch (calendarError) {
-        console.error('Error deleting calendar event:', calendarError);
-        // Don't fail cancellation if calendar deletion fails
-      }
     }
 
     // Update booking status to cancelled

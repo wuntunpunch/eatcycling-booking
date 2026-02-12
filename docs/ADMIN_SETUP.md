@@ -134,10 +134,6 @@ SUPABASE_SECRET_KEY=
 For production deployment, you may also need:
 
 ```bash
-# Google Calendar API (for calendar integration)
-GOOGLE_CALENDAR_ID=
-GOOGLE_SERVICE_ACCOUNT_KEY=
-
 # WhatsApp API (for notifications)
 WHATSAPP_PHONE_NUMBER_ID=
 WHATSAPP_API_TOKEN=
@@ -272,19 +268,16 @@ Set these in Vercel Dashboard → Project Settings → Environment Variables:
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 SUPABASE_SECRET_KEY
-GOOGLE_CALENDAR_ID
-GOOGLE_SERVICE_ACCOUNT_KEY
 WHATSAPP_PHONE_NUMBER_ID
 WHATSAPP_API_TOKEN
 ```
 
-**Note:** For Google Calendar and WhatsApp setup instructions, see [INTEGRATION_SETUP.md](./INTEGRATION_SETUP.md). This document can be shared with the customer to guide them through obtaining the necessary credentials.
+**Note:** For WhatsApp setup instructions, see [INTEGRATION_SETUP.md](./INTEGRATION_SETUP.md). This document can be shared with the customer to guide them through obtaining the necessary credentials.
 
 ### Post-Deployment Checklist
 
 - [ ] Verify admin accounts can log in
 - [ ] Test booking creation
-- [ ] Verify Google Calendar integration
 - [ ] Test WhatsApp notifications
 - [ ] Check availability settings work
 - [ ] Verify service limits function

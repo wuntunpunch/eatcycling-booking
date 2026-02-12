@@ -1,112 +1,13 @@
 # Integration Setup Guide
 
-This guide will walk you through setting up Google Calendar and WhatsApp integrations for your booking system. These integrations allow bookings to automatically appear in your calendar and send WhatsApp notifications to customers.
+This guide will walk you through setting up the WhatsApp integration for your booking system. This integration sends WhatsApp notifications to customers for booking confirmations, bike ready alerts, and reminders.
 
 ---
 
 ## Table of Contents
 
-1. [Google Calendar Setup](#google-calendar-setup)
-2. [WhatsApp Business API Setup](#whatsapp-business-api-setup)
-3. [Providing Credentials to Your Developer](#providing-credentials-to-your-developer)
-
----
-
-## Google Calendar Setup
-
-**Important:** You must use **your own Google account** (Customer's account) for this setup. The bookings will appear in **your calendar**, so you need to:
-
-- Create the Google Cloud project with your Google account
-- Share your calendar with the service account
-- Use your calendar ID (e.g., `your-email@gmail.com`)
-
-**Do NOT use customer accounts** - this is for your business calendar only.
-
-### Step 1: Create a Google Cloud Project
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click the project dropdown at the top
-3. Click **"New Project"**
-4. Enter a project name (e.g., "EAT Cycling Booking")
-5. Click **"Create"**
-6. Wait for the project to be created, then select it from the dropdown
-
-### Step 2: Enable Google Calendar API
-
-1. In the Google Cloud Console, go to **"APIs & Services"** → **"Library"**
-2. Search for **"Google Calendar API"**
-3. Click on **"Google Calendar API"**
-4. Click **"Enable"**
-5. Wait for it to enable (this may take a minute)
-
-### Step 3: Create a Service Account
-
-1. Go to **"APIs & Services"** → **"Credentials"**
-2. Click **"+ CREATE CREDENTIALS"** at the top
-3. Select **"Service account"**
-4. Enter a name (e.g., "booking-calendar")
-5. Click **"Create and Continue"**
-6. Skip the optional steps and click **"Done"**
-
-### Step 4: Create and Download Service Account Key
-
-1. In the **"Credentials"** page, find your service account in the list
-2. Click on the service account email address
-3. Go to the **"Keys"** tab
-4. Click **"Add Key"** → **"Create new key"**
-5. Select **"JSON"** format
-6. Click **"Create"**
-7. A JSON file will download automatically - **keep this file safe!**
-
-### Step 5: Share Your Calendar with the Service Account
-
-**This is YOUR calendar** (Customer's calendar) where bookings will appear. You're giving the service account permission to add events to it.
-
-1. Open [Google Calendar](https://calendar.google.com/) **with your Google account**
-2. On the left sidebar, find **"My calendars"** and hover over **your calendar** (the one where you want bookings to appear)
-3. Click the three dots (⋮) next to your calendar name
-4. Select **"Settings and sharing"**
-5. Scroll down to **"Share with specific people"**
-6. Click **"Add people"**
-7. Enter the service account email address (found in the JSON file you downloaded, it looks like: `something@project-name.iam.gserviceaccount.com`)
-8. Set permission to **"Make changes to events"**
-9. Click **"Send"**
-
-### Step 6: Get Your Calendar ID
-
-**This is YOUR calendar ID** (Customer's calendar) where bookings will appear.
-
-1. Still in Google Calendar settings (for your calendar)
-2. Scroll down to **"Integrate calendar"**
-3. Find **"Calendar ID"** - it will look like:
-   - `your-email@gmail.com` (for your personal calendar), OR
-   - `something@group.calendar.google.com` (for a shared calendar)
-4. **Copy this Calendar ID** - this is what your developer will use to add bookings to your calendar
-
-### Step 7: Prepare the Service Account Key
-
-The JSON file you downloaded needs to be converted to a special format. You have two options:
-
-**Option A: Using a Website (Easiest)**
-
-1. Go to [Base64 Encode](https://www.base64encode.org/)
-2. Open the JSON file you downloaded in a text editor
-3. Copy the entire contents of the file
-4. Paste it into the Base64 encoder website
-5. Click **"Encode"**
-6. Copy the encoded text (it will be a very long string)
-
-**Option B: Using Command Line (Mac/Linux)**
-
-1. Open Terminal
-2. Navigate to where you saved the JSON file
-3. Run: `cat your-service-account-file.json | base64`
-4. Copy the output (it will be a very long string)
-
-**What you now have:**
-
-- ✅ **Calendar ID**: Your calendar ID (e.g., `your-email@gmail.com`)
-- ✅ **Service Account Key**: The base64-encoded string from the JSON file
+1. [WhatsApp Business API Setup](#whatsapp-business-api-setup)
+2. [Providing Credentials to Your Developer](#providing-credentials-to-your-developer)
 
 ---
 
@@ -178,20 +79,6 @@ For production use, you'll want a permanent token:
 
 Once you have all the credentials, provide them to your developer in this format:
 
-### Google Calendar Credentials
-
-```
-GOOGLE_CALENDAR_ID=your-calendar-id@group.calendar.google.com
-GOOGLE_SERVICE_ACCOUNT_KEY=your-base64-encoded-service-account-key
-```
-
-**Example:**
-
-```
-GOOGLE_CALENDAR_ID=eatcycling@gmail.com
-GOOGLE_SERVICE_ACCOUNT_KEY=eyJ0eXBlIjoic2VydmljZV9hY2NvdW50IiwicHJvamVjdF9pZCI6...
-```
-
 ### WhatsApp Credentials
 
 ```
@@ -218,17 +105,7 @@ WHATSAPP_API_TOKEN=EAAMaHPpdxEUBQnFupayR4V9l2b7uXZBZAw3R5azM5qn1NUjbK9JT7FQjiFFi
 
 ## Testing Your Integrations
 
-After your developer has set up the integrations, you can test them:
-
-### Test Google Calendar Integration
-
-1. Create a test booking through the booking form
-2. Check your Google Calendar - the booking should appear automatically
-3. The event should show:
-   - Service type
-   - Customer name
-   - Phone number
-   - Bike details
+After your developer has set up the integration, you can test it:
 
 ### Test WhatsApp Integration
 
@@ -240,21 +117,6 @@ After your developer has set up the integrations, you can test them:
 ---
 
 ## Troubleshooting
-
-### Google Calendar Issues
-
-**Problem:** Bookings not appearing in calendar
-
-- **Check:** Service account has "Make changes to events" permission
-- **Check:** Calendar ID is correct
-- **Check:** Service account key is correctly base64 encoded
-- **Solution:** Re-share calendar with service account email
-
-**Problem:** "Permission denied" errors
-
-- **Check:** Service account email is added to calendar sharing
-- **Check:** Permission level is "Make changes to events" or "Make changes and manage sharing"
-- **Solution:** Remove and re-add service account with correct permissions
 
 ### WhatsApp Issues
 
@@ -300,17 +162,6 @@ Your developer will also need to set up WhatsApp message templates. These are pr
 
 ## Quick Reference Checklist
 
-### Google Calendar Setup
-
-- [ ] Created Google Cloud project
-- [ ] Enabled Google Calendar API
-- [ ] Created service account
-- [ ] Downloaded service account JSON key
-- [ ] Base64 encoded the JSON key
-- [ ] Shared calendar with service account email
-- [ ] Got Calendar ID
-- [ ] Provided credentials to developer
-
 ### WhatsApp Setup
 
 - [ ] Created Meta Business account
@@ -329,7 +180,6 @@ If you get stuck at any step:
 1. Check the troubleshooting section above
 2. Contact your developer for assistance
 3. Refer to official documentation:
-   - [Google Calendar API Docs](https://developers.google.com/calendar/api)
    - [WhatsApp Business API Docs](https://developers.facebook.com/docs/whatsapp)
 
 ---

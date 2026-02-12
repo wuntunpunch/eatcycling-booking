@@ -57,7 +57,6 @@ eatcyclingbooking/
 │   └── lib/                    # Utility functions
 │       ├── supabase.ts        # Supabase client (client-side)
 │       ├── supabase-server.ts # Supabase client (server-side)
-│       ├── google-calendar.ts # Calendar integration
 │       ├── whatsapp.ts        # WhatsApp integration
 │       └── types.ts           # TypeScript types
 ├── supabase/
@@ -106,10 +105,6 @@ eatcyclingbooking/
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SECRET_KEY=
-
-# Google Calendar (Optional for basic testing)
-GOOGLE_CALENDAR_ID=
-GOOGLE_SERVICE_ACCOUNT_KEY=
 
 # WhatsApp (Optional for basic testing)
 WHATSAPP_PHONE_NUMBER_ID=
@@ -309,7 +304,6 @@ Before deploying:
 3. **Environment Variables**
    - `NEXT_PUBLIC_*` variables are exposed to client
    - Never put secrets in `NEXT_PUBLIC_*` variables
-   - `GOOGLE_SERVICE_ACCOUNT_KEY` must be base64 encoded
 
 4. **Database Migrations**
    - Always run migrations in order
@@ -328,7 +322,6 @@ Before deploying:
 
 ### Common Gotchas
 
-- **Calendar Events**: May take a few seconds to appear
 - **WhatsApp Messages**: Template names are case-sensitive
 - **Date Picker**: Excludes unavailable dates client-side, but server validates too
 - **Session Expiry**: Admin sessions may expire - just re-login
@@ -479,8 +472,6 @@ npm run lint     # Run ESLint
 
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `SUPABASE_SECRET_KEY` - Server-side Supabase key
-- `GOOGLE_CALENDAR_ID` - Calendar ID (email format)
-- `GOOGLE_SERVICE_ACCOUNT_KEY` - Base64 encoded JSON
 - `WHATSAPP_PHONE_NUMBER_ID` - WhatsApp phone number ID
 - `WHATSAPP_API_TOKEN` - WhatsApp access token
 

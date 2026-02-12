@@ -47,7 +47,6 @@ Customers can book services directly at **book.eatcycling.co.uk**.
    - Click "Book Service" to submit
    - Customer will receive instant confirmation with a booking reference number
    - A WhatsApp confirmation message will be sent to their phone
-   - The booking will automatically appear in your Google Calendar
 
 5. **Add to Calendar** (Optional)
    - After booking, customers can add the appointment to their own calendar

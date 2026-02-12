@@ -35,7 +35,6 @@ EAT Cycling faced several critical issues with their existing booking solution:
    - Required date-based booking only, without rigid time constraints
 
 5. **Lack of Integration**
-   - No integration with Google Calendar (where Eddie manages his schedule)
    - No automated WhatsApp notifications (EAT Cycling's preferred communication channel)
    - Manual processes for booking confirmations and customer communication
 
@@ -47,7 +46,6 @@ Through consultation, we identified EAT Cycling's actual needs:
 - **Simple, focused booking form** - no unnecessary complexity
 - **Date-based booking** - Eddie manages his own daily schedule
 - **Phone-first approach** - phone numbers as primary customer identifier
-- **Google Calendar integration** - automatic event creation
 - **WhatsApp automation** - booking confirmations and "bike ready" notifications
 - **Admin dashboard** - view bookings, search customers, manage workflow
 - **Service reminders** - automated 6-month follow-up system
@@ -70,7 +68,7 @@ Rather than trying to adapt a generic solution, we built a custom booking system
 2. **Requirements Definition**
    - Prioritizing essential features over "nice-to-haves"
    - Designing around phone-first customer identification
-   - Planning integrations with existing tools (Google Calendar, WhatsApp)
+   - Planning integrations with existing tools (WhatsApp)
 
 3. **Iterative Development**
    - Building core booking functionality first
@@ -87,7 +85,7 @@ Rather than trying to adapt a generic solution, we built a custom booking system
 
 - **Customers** can book online via the public form
 - **Staff** can create bookings for walk-in customers or phone bookings using the same system
-- All bookings flow into the same unified system with automatic calendar and WhatsApp integration
+- All bookings flow into the same unified system with automatic WhatsApp integration
 
 ### Public Booking Form (`book.eatcycling.co.uk`)
 
@@ -135,7 +133,6 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
   - Mark as "ready" (triggers WhatsApp notification)
   - Mark as complete
   - **Cancel booking** (only from pending status)
-    - Automatically deletes Google Calendar event
     - Optional WhatsApp cancellation notification with rebooking link
     - Cancelled bookings excluded from capacity calculations
   - **Restore cancelled booking** - Reverse cancellation and restore to pending status
@@ -182,17 +179,10 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 
 ### Key Integrations
 
-**1. Google Calendar Integration**
-- Every booking automatically creates a calendar event
-- Events include:
-  - Customer name and phone number
-  - Service type
-  - Bike details
-  - Booking date
-  - Booking reference number
-- **Calendar Event ID Tracking**: System stores calendar event IDs for each booking
-- **Automatic Event Deletion**: When bookings are cancelled, calendar events are automatically deleted
-- Seamless integration with Eddie's existing calendar workflow
+**1. Customer Calendar Options**
+- After booking, customers can add appointments to their own calendar via the confirmation page
+- Options for Google Calendar, Apple Calendar, and Outlook
+- Helps customers remember their drop-off date
 
 **2. WhatsApp Business API**
 - **Booking Confirmations**: Automatic WhatsApp message sent when booking is created (includes reference number)
@@ -234,7 +224,7 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 - **Message Logging**: Complete audit trail of all communications
 - **Availability Management**: Flexible date exclusion system with day-of-week and specific date controls
 - **Daily Workload Control**: Service limits prevent overbooking and help manage capacity
-- **Cancellation Management**: Full cancellation workflow with calendar event deletion and optional customer notifications
+- **Cancellation Management**: Full cancellation workflow with optional customer notifications
 - **Collection Tracking**: Tracks when bikes are ready and when collection reminders are sent
 - **Real-Time Availability Checking**: Server-side and client-side validation ensures accurate booking availability
 - **Error Handling**: Graceful degradation if integrations fail
@@ -277,10 +267,9 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 
 ### 4. Workflow Integration ✅
 
-**Before:** Manual calendar entry, separate communication tools  
-**After:** Automated calendar and WhatsApp integration
+**Before:** Manual communication, separate tools  
+**After:** Automated WhatsApp integration
 
-- **Google Calendar**: Bookings automatically appear in Eddie's calendar
 - **WhatsApp**: Automated confirmations and "bike ready" notifications
 - **Admin Dashboard**: All bookings in one place, easy to manage
 
@@ -292,7 +281,7 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 - **Date-based booking**: No rigid time slots - Eddie manages his schedule
 - **Phone-first**: Matches how customers actually identify themselves
 - **Booking reference numbers**: Unique references help customers quote when dropping off bikes and help match bikes to bookings
-- **Cancellation management**: Admins can cancel bookings with automatic calendar cleanup and optional customer notifications
+- **Cancellation management**: Admins can cancel bookings with optional customer notifications
 - **Collection reminders**: Automated and manual reminders encourage timely bike collection
 - **Availability control**: Flexible system to exclude weekends, holidays, or specific dates
 - **Daily workload management**: Set maximum services per day to prevent overbooking
@@ -319,7 +308,7 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 2. **Unified Booking System**: All bookings (online, phone, walk-in) in one place
 3. **Staff Empowerment**: Staff can create bookings directly - no more manual processes
 4. **Better Organization**: All bookings in one dashboard
-5. **Time Savings**: Automated calendar and WhatsApp notifications
+5. **Time Savings**: Automated WhatsApp notifications
 6. **Availability Control**: Easy management of available dates (exclude weekends, holidays, specific dates)
 7. **Workload Management**: Set daily service limits to prevent overbooking and manage capacity
 8. **Customer Insights**: Easy access to customer history and patterns
@@ -329,21 +318,22 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 
 1. **Easier Booking**: Simple, focused form
 2. **Instant Confirmation**: WhatsApp confirmation immediately after booking with reference number
-3. **Booking Reference Numbers**: Easy-to-remember reference (EAT-YYYY-NNNN) to quote when dropping off bikes
-4. **Convenient Communication**: WhatsApp notifications when bike is ready
-5. **Collection Reminders**: Automated reminders if bike isn't collected promptly
-6. **Cancellation Support**: Clear notifications if bookings need to be cancelled with easy rebooking links
-7. **No Account Required**: Quick booking without sign-up
+3. **Add to Calendar**: One-click options to add appointments to Google, Apple, or Outlook calendar from the confirmation page
+4. **Booking Reference Numbers**: Easy-to-remember reference (EAT-YYYY-NNNN) to quote when dropping off bikes
+5. **Convenient Communication**: WhatsApp notifications when bike is ready
+6. **Collection Reminders**: Automated reminders if bike isn't collected promptly
+7. **Cancellation Support**: Clear notifications if bookings need to be cancelled with easy rebooking links
+8. **No Account Required**: Quick booking without sign-up
 
 ### For Business Operations
 
 1. **Complete Booking Capture**: All bookings (customer and staff-created) in unified system
 2. **Eliminated Manual Processes**: No more paper/spreadsheets for phone/walk-in bookings
-3. **Automated Workflows**: Calendar events and notifications happen automatically
+3. **Automated Workflows**: WhatsApp notifications happen automatically
 4. **Availability Management**: Prevent bookings on unavailable dates automatically
 5. **Capacity Control**: Daily service limits prevent overbooking and help balance workload
 6. **Booking Reference System**: Unique references help match bikes to bookings and improve customer experience
-7. **Cancellation Management**: Easy cancellation workflow with automatic calendar cleanup
+7. **Cancellation Management**: Easy cancellation workflow with optional customer notifications
 8. **Collection Management**: Automated reminders help ensure timely bike collection
 9. **Customer Retention**: 6-month reminder system encourages repeat business
 10. **Better Tracking**: Complete history of all bookings and communications
@@ -358,9 +348,9 @@ A comprehensive admin interface for managing all aspects of the business. Staff 
 - **Cost Savings**: 50% reduction - saving £300/year (£600/year → £300/year)
 - **Unified Booking System**: All bookings (customer and staff) in one place
 - **Staff Efficiency**: Staff can create bookings directly - no manual processes
-- **Streamlined Operations**: Automated calendar and notification workflows
+- **Streamlined Operations**: Automated notification workflows
 - **Booking Reference System**: Unique references improve organization and customer experience
-- **Cancellation Management**: Easy cancellation with automatic calendar cleanup
+- **Cancellation Management**: Easy cancellation with optional customer notifications
 - **Collection Management**: Automated reminders ensure timely bike collection
 - **Availability Control**: Easy management of available dates prevents booking conflicts
 - **Workload Management**: Daily service limits help balance capacity and prevent overbooking
@@ -391,7 +381,7 @@ By moving away from a generic, overpriced customer-only booking widget to a cust
 - **Eliminates manual work** (no more paper/spreadsheets for phone/walk-in bookings)
 - **Improves efficiency** (automated workflows)
 - **Organizes bookings** (unique reference numbers help match bikes to bookings)
-- **Manages cancellations** (easy cancellation with automatic calendar cleanup)
+- **Manages cancellations** (easy cancellation with optional customer notifications)
 - **Encourages collection** (automated reminders for bikes ready for pickup)
 - **Controls availability** (flexible date exclusions and daily workload limits)
 - **Prevents overbooking** (automatic capacity management)
@@ -410,7 +400,7 @@ The solution demonstrates how consultation and custom development can deliver be
 **Database:** Supabase (PostgreSQL)  
 **Framework:** Next.js 16 (App Router)  
 **Styling:** Tailwind CSS  
-**Integrations:** Google Calendar API, WhatsApp Business API  
+**Integrations:** WhatsApp Business API  
 **Authentication:** Supabase Auth with fallback password login  
 **Automation:** Vercel Cron Jobs (daily 6-month service reminders and collection reminders)
 

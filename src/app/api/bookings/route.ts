@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { BookingFormData } from '@/lib/types';
-import { createCalendarEvent } from '@/lib/google-calendar';
 import { sendBookingConfirmation } from '@/lib/whatsapp';
 import {
   isDateAvailable,
@@ -184,31 +183,6 @@ export async function POST(request: NextRequest) {
         { message: 'Failed to create booking' },
         { status: 500 }
       );
-    }
-
-    // Add Google Calendar event
-    let calendarEventId: string | null = null;
-    try {
-      const calendarEvent = await createCalendarEvent({
-        customerName: body.name,
-        customerPhone: normalizedPhone,
-        serviceType: body.service_type,
-        date: body.date,
-        bikeDetails: body.bike_details,
-      });
-      
-      // Store calendar event ID if available
-      if (calendarEvent?.id) {
-        calendarEventId = calendarEvent.id;
-        // Update booking with calendar event ID
-        await supabase
-          .from('bookings')
-          .update({ calendar_event_id: calendarEventId })
-          .eq('id', booking.id);
-      }
-    } catch (calendarError) {
-      console.error('Error creating calendar event:', calendarError);
-      // Don't fail the booking if calendar fails
     }
 
     // Send WhatsApp confirmation
